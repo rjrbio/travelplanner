@@ -1,79 +1,55 @@
-# Organización del trabajo para 3 desarrolladores
+# Plan simplificado y objetivo MVP
 
-## 1. Objetivo
-Dividir el proyecto en tres áreas claras para que los 3 desarrolladores trabajen de forma independiente y con integración controlada.
+## Objetivo
+Reducir el alcance a un MVP realizable en pocas jornadas por desarrollador, enfocando en pruebas de integración y funcionalidad mínima.
 
-## 2. Roles y responsabilidades
+## MVP mínimo (prioridad)
+- Endpoints básicos en el backend: `/plan` y `/search` (respuesta mock/estructurada).
+- `Planner Agent`: generación básica de plan (reglas simples o prompts cortos).
+- `Search Agent`: devuelve opciones mock de vuelos/hoteles/tours.
+- RAG mínimo: vector store local con ingestión simple (opcional para sprint 1).
+- Docker + `.env.example` para reproducibilidad.
 
-### Desarrollador 1 — Backend Core + Infraestructura
-- Crear la estructura base del proyecto
-- Configurar Ollama local o remoto
-- Configurar LangGraph (estado, nodos, flujos)
-- Crear API interna con FastAPI o Flask
-- Manejar variables de entorno y secrets
-- Integrar logging, tracing y manejo de errores
-- Dockerizar el proyecto
+## Roles condensados y entregables (mínimos)
 
-### Desarrollador 2 — Agentes + LangGraph
-- Implementar los agentes:
-  - Planner Agent
-  - Search Agent
-  - Itinerary Builder
-- Crear el grafo en LangGraph
-- Manejar estados y transiciones
-- Integrar los agentes con el backend
-- Crear prompts optimizados para Ollama
-- Implementar paralelización de búsqueda (vuelos, hoteles, tours)
+### Dev 1 — Backend (8–16h)
+- Implementar `backend/main.py` con `/plan` y `/search` (mock responses).
+- Dockerfile, `docker-compose.yml` y `.env.example`.
+- Criterio de aceptación: endpoints responden con JSON válido.
 
-### Desarrollador 3 — RAG + Integraciones externas
-- Crear la base vectorial (Chroma, Milvus o Qdrant)
-- Implementar embeddings (Nomic, BGE, MPNet)
-- Preparar documentos para RAG (chunking, limpieza)
-- Integrar APIs externas:
-  - Amadeus / Skyscanner
-  - Booking / Expedia
-  - Viator / GetYourGuide
-  - OpenRouteService / Google Maps
-- Crear wrappers para cada API
-- Crear módulo de geocodificación
+### Dev 2 — Agentes (8–16h)
+- Implementar `Planner Agent` y `Search Agent` con lógica simple (no integraciones externas aún).
+- Documentar prompts básicos en `/prompts/`.
+- Criterio de aceptación: agentes devuelven estructura esperada y hay tests unitarios básicos.
 
-## 3. Estructura de carpetas recomendada
-- `backend/`
-- `agents/`
-- `graph/`
-- `rag/`
-- `integrations/`
-- `prompts/`
-- `tests/`
+### Dev 3 — RAG & Integraciones (prioridad baja, 8–24h)
+- Inicialmente usar un vectorstore local (placeholder) y permitir ingestión de textos.
+- Postergar integraciones reales (Amadeus, Booking, etc.) y usar mocks hasta que MVP esté estable.
+- Criterio de aceptación: ingestión y búsqueda simple funcionan con documentos de ejemplo.
 
-## 4. Ramas sugeridas
-- `feature/backend-core`
-- `feature/api-server`
-- `feature/docker-setup`
-- `feature/agents-planner`
-- `feature/agents-search`
-- `feature/agents-itinerary`
-- `feature/langgraph-flow`
-- `feature/rag-setup`
-- `feature/api-integrations`
-- `feature/maps-routing`
+## Ramas sugeridas (simplicidad)
+- `feature/backend` (Dev 1)
+- `feature/agents` (Dev 2)
+- `feature/rag-mock` (Dev 3)
 
-## 5. Flujo de trabajo
-- Cada desarrollador trabaja en su rama temática para evitar solapamientos.
-- Se hacen pull requests hacia `develop` o `main`.
-- Revisiones cruzadas entre desarrolladores.
-- Sincronizaciones regulares para resolver dependencias.
+## Flujo de trabajo recomendado
+- Cada dev trabaja en su rama temática y abre PRs cortos hacia `develop`.
+- Revisiones rápidas (1 reviewer) y merges frecuentes.
+- Entregables pequeños y verificables: 1 PR = 1 funcionalidad mínima.
 
-## 6. Entregables mínimos
-- Backend con API y dockerización
-- Agentes con grafo y prompts
-- RAG con vector store y embeddings
-- Integraciones externas y módulo de mapas
-- Tests iniciales
-- `Dockerfile`, `docker-compose.yml`, `requirements.txt`, `README.md`
+## Estimación de tiempo (por dev)
+- Sprint corto (2–3 días de trabajo enfocado / 16–24 horas). Objetivo: tener un demo interno al final.
 
-## 7. Verificación
-1. Cada desarrollador tiene una rama asignada.
-2. El backend expone `/plan`, `/search` y `/itinerary`.
-3. Los agentes y la RAG pueden integrarse con el backend.
-4. Cada área tiene un entregable funcional mínimo.
+## Criterios de aceptación del MVP
+1. `GET /plan` devuelve plan con campos `destination`, `days`, `summary`.
+2. `GET /search` devuelve lista de opciones (mínimo 2).
+3. Agentes básicos integrados con backend (llamadas internas o mocks).
+4. Proyecto se inicia con `docker-compose up` (documentado).
+
+## Siguientes pasos (prioritarios)
+1. Asignar quién implementa cada rama y bloquear 1–2 días para el MVP.
+2. Lanzar PRs pequeños y celebrar una demo interna.
+3. Si MVP estable, planificar integraciones externas y mejoras (LangGraph, Ollama, paralelización).
+
+---
+Este plan reduce complejidad, elimina integraciones externas en la fase inicial y prioriza entrega rápida y verificable.
