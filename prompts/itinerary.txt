@@ -1,0 +1,1 @@
+Genera un itinerario diario equilibrado para un destino y una duración dados.

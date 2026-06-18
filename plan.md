@@ -1,0 +1,79 @@
+# Organización del trabajo para 3 desarrolladores
+
+## 1. Objetivo
+Dividir el proyecto en tres áreas claras para que los 3 desarrolladores trabajen de forma independiente y con integración controlada.
+
+## 2. Roles y responsabilidades
+
+### Desarrollador 1 — Backend Core + Infraestructura
+- Crear la estructura base del proyecto
+- Configurar Ollama local o remoto
+- Configurar LangGraph (estado, nodos, flujos)
+- Crear API interna con FastAPI o Flask
+- Manejar variables de entorno y secrets
+- Integrar logging, tracing y manejo de errores
+- Dockerizar el proyecto
+
+### Desarrollador 2 — Agentes + LangGraph
+- Implementar los agentes:
+  - Planner Agent
+  - Search Agent
+  - Itinerary Builder
+- Crear el grafo en LangGraph
+- Manejar estados y transiciones
+- Integrar los agentes con el backend
+- Crear prompts optimizados para Ollama
+- Implementar paralelización de búsqueda (vuelos, hoteles, tours)
+
+### Desarrollador 3 — RAG + Integraciones externas
+- Crear la base vectorial (Chroma, Milvus o Qdrant)
+- Implementar embeddings (Nomic, BGE, MPNet)
+- Preparar documentos para RAG (chunking, limpieza)
+- Integrar APIs externas:
+  - Amadeus / Skyscanner
+  - Booking / Expedia
+  - Viator / GetYourGuide
+  - OpenRouteService / Google Maps
+- Crear wrappers para cada API
+- Crear módulo de geocodificación
+
+## 3. Estructura de carpetas recomendada
+- `backend/`
+- `agents/`
+- `graph/`
+- `rag/`
+- `integrations/`
+- `prompts/`
+- `tests/`
+
+## 4. Ramas sugeridas
+- `feature/backend-core`
+- `feature/api-server`
+- `feature/docker-setup`
+- `feature/agents-planner`
+- `feature/agents-search`
+- `feature/agents-itinerary`
+- `feature/langgraph-flow`
+- `feature/rag-setup`
+- `feature/api-integrations`
+- `feature/maps-routing`
+
+## 5. Flujo de trabajo
+- Cada desarrollador trabaja en su rama temática para evitar solapamientos.
+- Se hacen pull requests hacia `develop` o `main`.
+- Revisiones cruzadas entre desarrolladores.
+- Sincronizaciones regulares para resolver dependencias.
+
+## 6. Entregables mínimos
+- Backend con API y dockerización
+- Agentes con grafo y prompts
+- RAG con vector store y embeddings
+- Integraciones externas y módulo de mapas
+- Tests iniciales
+- `Dockerfile`, `docker-compose.yml`, `requirements.txt`, `README.md`
+
+## 7. Verificación
+1. Cada desarrollador tiene una rama asignada.
+2. El backend expone `/plan`, `/search` y `/itinerary`.
+3. Los agentes y la RAG pueden integrarse con el backend.
+4. Cada área tiene un entregable funcional mínimo.
