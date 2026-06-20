@@ -58,10 +58,8 @@
 │ • Genera el itinerario final              │
 │   (texto completo, detallado y coherente)
     - APIs de vuelos
-    - APIs de hoteles
-    - APIs de clima
-    - APIs de transporte
-    - APIs de eventos
+    - API de eventos
+    - APIS de localizacion 
 └─────────────┬────────────────────────────┘
               │
               ▼
@@ -70,3 +68,11 @@
 │------------------------------------------│
 │ • Devuelve el itinerario final al usuario│
 └──────────────────────────────────────────┘
+
+
+graph.add_node("classifier", classifier_node)   # LLM + regex + detectors
+graph.add_node("rag", rag_node)                 # RAGQuery (Chroma + Embeddings)
+graph.add_node("budget", budget_node)           # regex + (opcional LLM)
+graph.add_node("planner", planner_node)         # PlannerAgent (LLM)
+graph.add_node("itinerary", itinerary_node)     # ItineraryAgent (LLM + RAG)
+graph.add_node("output", output_node)           # no tools
