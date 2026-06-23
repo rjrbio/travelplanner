@@ -14,12 +14,9 @@ class ItineraryAgent:
     def build_itinerary(self, destination: str, days: int) -> dict:
         print(f"Creando itinerario de {days} días para {destination}...")
 
-        # 1. Instrucciones estrictas para la IA
-        prompt_text = """
-        Crea un itinerario resumido de {days} días para {destination}. Escribe
-        exactamente una línea por cada día, empezando por 'Día X:'. No escribas
-        introducciones, despedidas ni notas adicionales.
-        """
+# 1. Leemos el archivo de instrucciones externas
+        with open("prompts/itinerary.txt", "r", encoding="utf-8") as file:
+            prompt_text = file.read()
 
         prompt_template = ChatPromptTemplate.from_template(prompt_text)
 

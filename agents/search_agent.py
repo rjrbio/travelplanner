@@ -15,11 +15,9 @@ class SearchAgent:
     def search_options(self, query: str) -> list[str]:
         print(f"Buscando opciones en internet para '{query}'...")
 
-        # 1. Por rapidez, esta vez se pondrá el prompt directamente en el código
-        prompt_text = """
-        Eres un buscador experto. Inventa 3 opciones (un vuelo, un hotel, y un tour) para la búsqueda: {query}.
-        Escribe cada opción en una nueva línea y no escribas introducciones, solo devuelve las opciones.
-        """
+        # 1. Leemos el archivo de instrucciones externas
+        with open("prompts/search.txt", "r", encoding="utf-8") as file:
+            prompt_text = file.read()
 
         # 2. Se crea la plantilla
         prompt_template = ChatPromptTemplate.from_template(prompt_text)
