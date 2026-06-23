@@ -10,6 +10,19 @@ class AttractionsService:
     BASE_URL = "https://booking-com15.p.rapidapi.com/api/v1/attraction/searchAttractions"
 
     @staticmethod
+    def safe_get(obj, *keys):
+        """
+        Permite acceder a claves anidadas sin romper si algo es None.
+        Ejemplo:
+        safe_get(p, "reviewsStats", "combinedNumericStats", "average")
+        """
+        for key in keys:
+            if not isinstance(obj, dict):
+                return None
+            obj = obj.get(key)
+        return obj
+
+    @staticmethod
     def search_attractions(encoded_id: str, page: int = 1, sort_by: str = "trending",
                            currency: str = "EUR", language: str = "en-us"):
 
@@ -41,13 +54,13 @@ class AttractionsService:
                 "id": p.get("id"),
                 "name": p.get("name"),
                 "description": p.get("shortDescription"),
-                "price": p.get("representativePrice", {}).get("chargeAmount"),
-                "currency": p.get("representativePrice", {}).get("currency"),
-                "rating": p.get("reviewsStats", {}).get("combinedNumericStats", {}).get("average"),
-                "reviews": p.get("reviewsStats", {}).get("allReviewsCount"),
-                "photo": p.get("primaryPhoto", {}).get("small"),
-                "city": p.get("ufiDetails", {}).get("bCityName"),
-                "country": p.get("ufiDetails", {}).get("url", {}).get("country")
+                "price": AttractionsService.safe_get(p, "representativePrice", "chargeAmount"),
+                "currency": AttractionsService.safe_get(p, "representativePrice", "currency"),
+                "rating": AttractionsService.safe_get(p, "reviewsStats", "combinedNumericStats", "average"),
+                "reviews": AttractionsService.safe_get(p, "reviewsStats", "allReviewsCount"),
+                "photo": AttractionsService.safe_get(p, "primaryPhoto", "small"),
+                "city": AttractionsService.safe_get(p, "ufiDetails", "bCityName"),
+                "country": AttractionsService.safe_get(p, "ufiDetails", "url", "country")
             })
 
         return normalized

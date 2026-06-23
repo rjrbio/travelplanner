@@ -23,4 +23,5 @@ dependencies = [
     "rank-bm25>=0.2.2",
     "sentence-transformers>=5.5.1",
     "uvicorn>=0.48.0",
+    "python-dotenv>=1.0.0"
 ]
