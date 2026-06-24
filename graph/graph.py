@@ -65,6 +65,31 @@ builder.add_edge("itinerary", END)
 # Por último, compilamos el graph para dejarla lista
 graph=builder.compile()
 
+# ---------------------------------------------------------
+# API / PUNTO DE ENTRADA DEL BACKEND
+# ---------------------------------------------------------
+def ejecutar_viaje(destino: str, dias: int) -> dict:
+    """
+    Función contenedora (wrapper) para exponer la ejecución de LangGraph al backend.
+    """
+    estado_inicial = {
+        "destination": destino,
+        "days": dias
+    }
+    
+    # Ejecución sincrónica del LangGraph de agentes
+    resultado_final = graph.invoke(estado_inicial)
+    
+    # Formateo de la salida: Estructura de datos normalizada para la respuesta de la API
+    return {
+        "destino": destino,
+        "dias": dias,
+        "mensaje_motivacional": resultado_final.get("planner_summary"),
+        "opciones_busqueda": resultado_final.get("search_options"),
+        "itinerario": resultado_final.get("itinerary_final")
+    }
+
+
 if __name__=="__main__":
     # Crea el state inicial con lo que pide con lo que pide el usuario
     estado_inicial={
