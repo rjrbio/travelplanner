@@ -51,6 +51,25 @@
     settingsView: $('#settingsView'),
     historyList: $('#historyList'),
     chips: $('#chips'),
+    ragView: $('#ragView'),
+    ragStats: $('#ragStats'),
+    statChunks: $('#statChunks'),
+    statDocs: $('#statDocs'),
+    dropzone: $('#dropzone'),
+    fileInput: $('#fileInput'),
+    docCategory: $('#docCategory'),
+    docCity: $('#docCity'),
+    uploadBtn: $('#uploadBtn'),
+    uploadProgress: $('#uploadProgress'),
+    uploadProgressBar: $('#uploadProgressBar'),
+    uploadProgressText: $('#uploadProgressText'),
+    docList: $('#docList'),
+    docSearch: $('#docSearch'),
+    refreshDocsBtn: $('#refreshDocsBtn'),
+    reindexBtn: $('#reindexBtn'),
+    testQuery: $('#testQuery'),
+    testSearchBtn: $('#testSearchBtn'),
+    testResults: $('#testResults'),
   };
 
   /* ─── Init ─── */
@@ -62,6 +81,7 @@
     setupInput();
     setupButtons();
     setupChips();
+    setupRAG();
     startSession();
   }
 
@@ -116,7 +136,9 @@
     el.chatView.hidden = view !== 'chat';
     el.historyView.hidden = view !== 'history';
     el.settingsView.hidden = view !== 'settings';
+    el.ragView.hidden = view !== 'rag';
     if (view === 'history') renderHistory();
+    if (view === 'rag') refreshRAG();
   }
 
   /* ─── Session ─── */
@@ -393,6 +415,178 @@
       '<div class="history__item-meta">' + formatDate(new Date(firstUserMsg.time)) + ' &middot; ' + STATE.history.length + ' mensajes</div>' +
       '</div>';
     el.historyList.appendChild(div);
+  }
+
+  /* ─── RAG Admin ─── */
+  function setupRAG() {
+    el.dropzone.addEventListener('click', function () { el.fileInput.click(); });
+    el.dropzone.addEventListener('dragover', function (e) { e.preventDefault(); el.dropzone.classList.add('ragadmin__dropzone--active'); });
+    el.dropzone.addEventListener('dragleave', function () { el.dropzone.classList.remove('ragadmin__dropzone--active'); });
+    el.dropzone.addEventListener('drop', function (e) { e.preventDefault(); el.dropzone.classList.remove('ragadmin__dropzone--active'); if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+    el.fileInput.addEventListener('change', function () { if (el.fileInput.files.length) handleFile(el.fileInput.files[0]); });
+    el.uploadBtn.addEventListener('click', uploadDocument);
+    el.refreshDocsBtn.addEventListener('click', refreshRAG);
+    el.reindexBtn.addEventListener('click', reindexAll);
+    el.docSearch.addEventListener('input', filterDocs);
+    el.testSearchBtn.addEventListener('click', testSearch);
+    el.testQuery.addEventListener('keydown', function (e) { if (e.key === 'Enter') testSearch(); });
+  }
+
+  var _pendingFile = null;
+
+  function handleFile(file) {
+    var allowed = ['.pdf', '.txt', '.md', '.csv'];
+    var ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (allowed.indexOf(ext) === -1) { showToast('Formato no permitido: ' + ext); return; }
+    _pendingFile = file;
+    el.uploadBtn.disabled = false;
+    el.dropzone.querySelector('p').textContent = file.name;
+    el.dropzone.querySelector('.ragadmin__dropzone-hint').textContent = (file.size / 1024).toFixed(1) + ' KB';
+  }
+
+  async function uploadDocument() {
+    if (!_pendingFile) return;
+    el.uploadBtn.disabled = true;
+    el.uploadProgress.hidden = false;
+
+    var form = new FormData();
+    form.append('file', _pendingFile);
+    form.append('category', el.docCategory.value);
+    form.append('city', el.docCity.value || '');
+
+    try {
+      var res = await fetch('/rag/upload', { method: 'POST', body: form });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      el.uploadProgressText.textContent = 'Subido. Reindexando...';
+      await reindexAll();
+      showToast('Documento subido e indexado');
+      _pendingFile = null;
+      el.uploadBtn.disabled = true;
+      el.dropzone.querySelector('p').textContent = 'Arrastra un archivo aqu\u00ED o haz clic para seleccionar';
+      el.dropzone.querySelector('.ragadmin__dropzone-hint').textContent = 'PDF, TXT, MD, CSV';
+      refreshRAG();
+    } catch (e) {
+      showToast('Error al subir: ' + e.message);
+    } finally {
+      el.uploadProgress.hidden = true;
+    }
+  }
+
+  async function refreshRAG() {
+    el.ragView.hidden = false;
+    loadStats();
+    loadDocuments();
+  }
+
+  async function loadStats() {
+    try {
+      var res = await fetch('/rag/stats');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var data = await res.json();
+      el.statChunks.textContent = data.total_chunks || 0;
+      el.statDocs.textContent = (data.documents && data.documents.length) || 0;
+    } catch (e) {
+      el.statChunks.textContent = '?';
+      el.statDocs.textContent = '?';
+    }
+  }
+
+  async function loadDocuments() {
+    try {
+      var res = await fetch('/rag/documents');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var data = await res.json();
+      renderDocuments(data.documents || []);
+    } catch (e) {
+      el.docList.innerHTML = '<p class="ragadmin__empty">Error cargando documentos</p>';
+    }
+  }
+
+  function renderDocuments(docs) {
+    if (!docs.length) {
+      el.docList.innerHTML = '<p class="ragadmin__empty">No hay documentos indexados</p>';
+      return;
+    }
+    var html = '';
+    var filter = el.docSearch.value.toLowerCase();
+    docs.forEach(function (d) {
+      if (filter && d.name.toLowerCase().indexOf(filter) === -1) return;
+      html +=
+        '<div class="ragadmin__doc-item" data-path="' + d.path + '">' +
+        '<div class="ragadmin__doc-info">' +
+        '<span class="ragadmin__doc-name">' + esc(d.name) + '</span>' +
+        '<span class="ragadmin__doc-meta">' + esc(d.category) + (d.city ? ' \u00B7 ' + esc(d.city) : '') + ' \u00B7 ' + (d.size / 1024).toFixed(1) + ' KB</span>' +
+        '</div>' +
+        '<button class="ragadmin__doc-delete" onclick="deleteDoc(\'' + d.path.replace(/'/g, "\\'") + '\')">Eliminar</button>' +
+        '</div>';
+    });
+    if (!html) html = '<p class="ragadmin__empty">Sin resultados</p>';
+    el.docList.innerHTML = html;
+  }
+
+  function filterDocs() { loadDocuments(); }
+
+  window.deleteDoc = async function (path) {
+    if (!confirm('\u00BFEliminar ' + path + '?')) return;
+    try {
+      var res = await fetch('/rag/document?path=' + encodeURIComponent(path), { method: 'DELETE' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      showToast('Documento eliminado');
+      refreshRAG();
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    }
+  };
+
+  async function reindexAll() {
+    el.reindexBtn.disabled = true;
+    el.reindexBtn.textContent = 'Indexando...';
+    try {
+      var res = await fetch('/rag/reindex', { method: 'POST' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var data = await res.json();
+      showToast('Indexaci\u00F3n completa: ' + (data.chunks || 0) + ' chunks');
+      refreshRAG();
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    } finally {
+      el.reindexBtn.disabled = false;
+      el.reindexBtn.textContent = 'Reindexar todo';
+    }
+  }
+
+  async function testSearch() {
+    var q = el.testQuery.value.trim();
+    if (!q) return;
+    el.testResults.innerHTML = '<p class="ragadmin__empty">Buscando...</p>';
+    try {
+      var res = await fetch('/rag/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'query=' + encodeURIComponent(q) + '&k=5',
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var data = await res.json();
+      var results = data.results || [];
+      if (!results.length) {
+        el.testResults.innerHTML = '<p class="ragadmin__empty">Sin resultados</p>';
+        return;
+      }
+      var html = results.map(function (r, i) {
+        var cat = (r.metadata && r.metadata.categoria) || '';
+        var score = r.distance ? ' (' + (1 - r.distance).toFixed(2) + ')' : '';
+        return '<div class="ragadmin__test-item"><strong>#' + (i + 1) + score + '</strong> ' + esc(r.content.slice(0, 300)) + '<div class="ragadmin__doc-meta">' + esc(cat) + '</div></div>';
+      }).join('');
+      el.testResults.innerHTML = html;
+    } catch (e) {
+      el.testResults.innerHTML = '<p class="ragadmin__empty">Error: ' + e.message + '</p>';
+    }
+  }
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
   }
 
   /* ─── Toast ─── */

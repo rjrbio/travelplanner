@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from api.routers.chat import router as chat_router
 from api.routers.session import router as session_router
 from api.routers.health import router as health_router
+from api.routers.rag_admin import router as rag_admin_router
 from api.deps.database import init_db
 
 
@@ -39,3 +40,4 @@ def root():
 app.include_router(chat_router, prefix="/chat")
 app.include_router(session_router, prefix="/session")
 app.include_router(health_router, prefix="/health")
+app.include_router(rag_admin_router, prefix="/rag")
