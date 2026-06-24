@@ -8,7 +8,7 @@ class ItineraryAgent:
     """
 
     def __init__(self):
-        self.llm = ChatOllama(model="qwen3:8b", temperature=0.7)
+        self.llm = ChatOllama(model="qwen3:1.7b", temperature=0.7)
 
     def build_itinerary(self, destination: str, days: int) -> dict:
         print(f"Creando itinerario de {days} días para {destination}...")

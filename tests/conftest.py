@@ -17,7 +17,7 @@ def modelo_disponible() -> bool:
         import httpx
         r = httpx.post(
             "http://localhost:11434/api/show",
-            json={"name": "qwen3:8b"},
+            json={"name": "qwen3:1.7b"},
             timeout=2,
         )
         return r.status_code == 200
@@ -27,5 +27,5 @@ def modelo_disponible() -> bool:
 
 pytestmark_agentes = pytest.mark.skipif(
     not modelo_disponible(),
-    reason="Requiere Ollama con modelo qwen3:8b (ollama pull qwen3:8b)",
+    reason="Requiere Ollama con modelo qwen3:1.7b (ollama pull qwen3:1.7b)",
 )

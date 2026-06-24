@@ -10,7 +10,7 @@ class SearchAgent:
 
     def __init__(self):
         # Se inicializa el "cerebro" en el momento en que nace el agente
-        self.llm = ChatOllama(model="qwen3:8b", temperature=0.7)
+        self.llm = ChatOllama(model="qwen3:1.7b", temperature=0.7)
 
     def search_options(self, query: str) -> list[str]:
         print(f"Buscando opciones en internet para '{query}'...")

@@ -35,7 +35,7 @@ Ver detalles en [.opencode/rules/workflow.md](.opencode/rules/workflow.md).
 | Componente | Tecnología |
 |------------|-----------|
 | Backend | Python 3.14+, FastAPI, Uvicorn |
-| Agentes | LangGraph, LangChain, Ollama (qwen3:8b) |
+| Agentes | LangGraph, LangChain, Ollama (qwen3:1.7b) |
 | RAG | ChromaDB, OllamaEmbeddings |
 | Frontend | HTML + CSS + JS vanilla |
 | APIs externas | RapidAPI (booking-com15) |
