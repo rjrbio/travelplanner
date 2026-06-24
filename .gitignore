@@ -1,17 +1,40 @@
-# Entornos virtuales
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+*.so
+*.whl
+
+# --- Virtual environments ---
 .venv/
 venv/
 env/
 
-# Caché de Python y Tests
-__pycache__/
-*.pyc
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Testing ---
 .pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+*.coverage
 
-# Archivos de configuración locales y secretos
+# --- Secrets ---
 .env
-.env.example
-.gitignore
+.env.local
+*.key
+*.pem
 
-# Chroma
+# --- Chroma vector store ---
 ej-chroma*
+chroma_data/
