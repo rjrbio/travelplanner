@@ -1,5 +1,3 @@
-from typing import list
-
 class VectorStore:
     def __init__(self) -> None:
         self.vectors: list[dict] = []

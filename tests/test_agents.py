@@ -1,6 +1,10 @@
 from agents.planner_agent import PlannerAgent
 from agents.search_agent import SearchAgent
 from agents.itinerary_agent import ItineraryAgent
+from tests.conftest import pytestmark_agentes
+
+
+pytestmark = pytestmark_agentes
 
 
 def test_planner_agent():
@@ -15,6 +19,7 @@ def test_search_agent():
     result = agent.search_options("playa")
     assert isinstance(result, list)
     assert len(result) > 0
+
 
 def test_itinerary_agent():
     agent = ItineraryAgent()
