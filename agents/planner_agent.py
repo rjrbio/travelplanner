@@ -9,8 +9,13 @@ class PlannerAgent:
     """
 
     def __init__(self):
-        # Se inicializa el "cerebro" en el momento en que nace el agente
-        self.llm = ChatOllama(model="qwen3:1.7b", temperature=0.7)
+        self._llm = None
+
+    @property
+    def llm(self):
+        if self._llm is None:
+            self._llm = ChatOllama(model="qwen3:1.7b", temperature=0.7, num_predict=1024, client_kwargs={"timeout": 60})
+        return self._llm
 
     def plan_trip(self, destination: str, days: int) -> dict:
         print(f"Pensando un viaje a {destination} de {days} días...")

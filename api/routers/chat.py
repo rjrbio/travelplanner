@@ -83,7 +83,9 @@ def chat(session_id: str, request: ChatRequest):
     else:
         try:
             from graph.graph import ejecutar_viaje
-            resultado = ejecutar_viaje(destino, dias)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                futuro = pool.submit(ejecutar_viaje, destino, dias)
+                resultado = futuro.result(timeout=_TIMEOUT)
             plan = resultado.get("mensaje_motivacional", "")
             opciones = resultado.get("opciones_busqueda", [])
             itinerario = resultado.get("itinerario", {})
@@ -101,7 +103,7 @@ def chat(session_id: str, request: ChatRequest):
                 bot_response += "### Itinerario\n"
                 for dia in itinerario.get("itinerary", []):
                     bot_response += f"- {dia}\n"
-        except Exception:
+        except (TimeoutError, Exception):
             bot_response = _mock_response(destino, dias)
 
     SessionManager.append_message(session_id, "bot", bot_response)
