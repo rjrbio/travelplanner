@@ -1,75 +1,40 @@
-﻿from dataclasses import dataclass
+﻿from langchain_ollama import ChatOllama
+from langchain_core.prompts import ChatPromptTemplate
 
 
 class ItineraryAgent:
     """
-    Agente final del grafo.
-    Recibe el estado enriquecido y genera el itinerario final en texto.
+    Agente encargado de construir el itinerario final de viaje utilizando IA.
     """
 
-    def run(self, state):
-        itinerary = state.get("itinerary", {})
+    def __init__(self):
+        self.llm = ChatOllama(model="qwen3:8b", temperature=0.7)
 
-        summary = itinerary.get("summary", "Itinerario de viaje")
-        days = itinerary.get("days", [])
-        flights = itinerary.get("flights", [])
-        attractions = itinerary.get("attractions", [])
-        tips = itinerary.get("tips", [])
-        weather = itinerary.get("weather")
-        transport = itinerary.get("transport")
-        events = itinerary.get("events", [])
-        neighborhoods = itinerary.get("neighborhoods", [])
+    def build_itinerary(self, destination: str, days: int) -> dict:
+        print(f"Creando itinerario de {days} días para {destination}...")
 
-        text = f"🧳 **{summary}**\n\n"
+        with open("prompts/itinerary.txt", "r", encoding="utf-8") as file:
+            prompt_text = file.read()
 
-        # Vuelos
-        if flights:
-            text += "✈️ **Vuelos sugeridos:**\n"
-            for f in flights[:3]:
-                text += f"- {f.get('airline', 'Aerolínea')} — {f.get('price')} {f.get('currency', '')}\n"
-            text += "\n"
+        prompt_template = ChatPromptTemplate.from_template(prompt_text)
 
-        # Atracciones
-        if attractions:
-            text += "🎟️ **Atracciones recomendadas:**\n"
-            for a in attractions[:5]:
-                text += f"- {a.get('name')} — {a.get('price')} {a.get('currency', '')}\n"
-            text += "\n"
+        chain = prompt_template | self.llm
 
-        # Días del itinerario
-        text += "📅 **Plan día por día:**\n"
-        for day in days:
-            text += f"\n### {day['title']}\n"
-            text += f"{day['description']}\n"
-            if day.get("suggested_activities"):
-                text += "\nActividades sugeridas:\n"
-                for act in day["suggested_activities"]:
-                    text += f"- {act.get('name')}\n"
+        response = chain.invoke({"destination": destination, "days": days})
 
-        # RAG
-        text += "\n\n🌤️ **Clima promedio:** " + (weather or "No disponible")
-        text += "\n🚇 **Transporte recomendado:** " + (transport or "No disponible")
+        lineas = response.content.strip().split("\n")
 
-        if events:
-            text += "\n🎉 **Eventos típicos:**\n"
-            for e in events:
-                text += f"- {e}\n"
+        itinerario_limpio = [linea for linea in lineas if linea.strip() != ""]
 
-        if neighborhoods:
-            text += "\n🏘️ **Barrios recomendados:**\n"
-            for n in neighborhoods:
-                text += f"- {n}\n"
+        itinerario_exacto = itinerario_limpio[:days]
 
-        if tips:
-            text += "\n💡 **Tips útiles:**\n"
-            for t in tips:
-                text += f"- {t}\n"
+        while len(itinerario_exacto) < days:
+            itinerario_exacto.append(
+                f"Día {len(itinerario_exacto)+1}: Exploración libre en {destination}"
+            )
 
         return {
-            **state,
-            "final_itinerary_text": text
+            "destination": destination,
+            "days": days,
+            "itinerary": itinerario_exacto,
         }
-
-
-# Instancia global para el grafo
-itinerary_agent = ItineraryAgent().run

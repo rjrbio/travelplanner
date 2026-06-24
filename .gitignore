@@ -1,3 +1,17 @@
-ej-chroma*
+# Entornos virtuales
 .venv/
 venv/
+env/
+
+# Caché de Python y Tests
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Archivos de configuración locales y secretos
+.env
+.env.example
+.gitignore
+
+# Chroma
+ej-chroma*

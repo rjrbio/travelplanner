@@ -1,1 +1,3 @@
-Genera un itinerario diario equilibrado para un destino y una duraci�n dados.
+Crea un itinerario resumido de {days} días para {destination}. Escribe
+exactamente una línea por cada día, empezando por 'Día X:'. No escribas
+introducciones, despedidas ni notas adicionales.

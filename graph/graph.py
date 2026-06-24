@@ -1,65 +1,81 @@
-﻿from .state import GraphState
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph, START, END
+from graph.state import TravelState
 
-from agents.classifier_agent import classifier_agent
-from agents.rag_agent import rag_agent
-from agents.budget_agent import budget_agent
-from agents.planner_agent import planner_agent
-from agents.itinerary_agent import itinerary_agent
+from agents.planner_agent import PlannerAgent
+from agents.search_agent import SearchAgent
+from agents.itinerary_agent import ItineraryAgent
 
-from nodes.fetch_flights_node import fetch_flights_node
-from nodes.fetch_attractions_node import fetch_attractions_node
-from nodes.enrich_itinerary_node import enrich_itinerary_node
-
-class LangGraph:
-    def __init__(self) -> None:
-        self.state = GraphState()
-        self.nodes: dict[str, list[str]] = {
-            "start": ["planner", "search"],
-            "planner": ["itinerary"],
-            "search": ["planner"],
-            "itinerary": []
-        }
-
-    def transition(self, next_node: str) -> str:
-        if next_node not in self.nodes:
-            raise ValueError(f"Nodo inválido: {next_node}")
-        self.state.current_node = next_node
-        self.state.history.append(next_node)
-        return next_node
- 
+planner = PlannerAgent()
+searcher = SearchAgent()
+Itinerary = ItineraryAgent()
 
 
+def plan_node(state: TravelState):
+    print("--- Entrando al Planner ---")
+    destino = state["destination"]
+    dias = state["days"]
+    respuesta = planner.plan_trip(destino, dias)
+    return {"planner_summary": respuesta["summary"]}
 
-    def build_graph():
 
-        graph = StateGraph()
+def search_node(state: TravelState):
+    print("--- Entrando al Searcher ---")
+    destino = state["destination"]
+    opciones = searcher.search_options(destino)
+    return {"search_options": opciones}
 
-        # Nodos-agentes
-        graph.add_node("classifier", classifier_agent)
-        graph.add_node("rag", rag_agent)
-        graph.add_node("budget", budget_agent)
-        graph.add_node("planner", planner_agent)
-        graph.add_node("itinerary", itinerary_agent)
 
-        # Nodos de integración (Dev 3)
-        graph.add_node("fetch_flights", fetch_flights_node)
-        graph.add_node("fetch_attractions", fetch_attractions_node)
-        graph.add_node("enrich_itinerary", enrich_itinerary_node)
+def itinerary_node(state: TravelState):
+    print("--- Entrando al Itinerary Builder ---")
+    destino = state["destination"]
+    dias = state["days"]
+    plan = Itinerary.build_itinerary(destino, dias)
+    return {"itinerary_final": plan}
 
-        # Flujo del grafo
-        graph.set_entry_point("classifier")
 
-        graph.add_edge("classifier", "rag")
-        graph.add_edge("rag", "budget")
-        graph.add_edge("budget", "planner")
+builder = StateGraph(TravelState)
 
-        # Integración Dev 3
-        graph.add_edge("planner", "fetch_flights")
-        graph.add_edge("fetch_flights", "fetch_attractions")
-        graph.add_edge("fetch_attractions", "enrich_itinerary")
-        graph.add_edge("enrich_itinerary", "itinerary")
+builder.add_node("planner", plan_node)
+builder.add_node("searcher", search_node)
+builder.add_node("itinerary", itinerary_node)
 
-        graph.add_edge("itinerary", END)
+builder.add_edge(START, "planner")
+builder.add_edge("planner", "searcher")
+builder.add_edge("searcher", "itinerary")
+builder.add_edge("itinerary", END)
 
-        return graph.compile()
+graph = builder.compile()
+
+
+def ejecutar_viaje(destino: str, dias: int) -> dict:
+    estado_inicial = {
+        "destination": destino,
+        "days": dias
+    }
+    resultado_final = graph.invoke(estado_inicial)
+    return {
+        "destino": destino,
+        "dias": dias,
+        "mensaje_motivacional": resultado_final.get("planner_summary"),
+        "opciones_busqueda": resultado_final.get("search_options"),
+        "itinerario": resultado_final.get("itinerary_final")
+    }
+
+
+if __name__ == "__main__":
+    estado_inicial = {
+        "destination": "Kioto", "days": 4
+    }
+    print("\n -- Arrancando el LangGraph... ---")
+    resultado = graph.invoke(estado_inicial)
+
+    print("\n--- EL PLANNER ---\n")
+    print(resultado["planner_summary"])
+
+    print("\n--- OPCIONES DEL SEARCHER ---")
+    for opcion in resultado["search_options"]:
+        print(f" - {opcion}")
+
+    print("\n--- ITINERARIO FINAL ---")
+    for dia in resultado["itinerary_final"]["itinerary"]:
+        print(f" {dia}")
