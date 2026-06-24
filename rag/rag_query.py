@@ -13,8 +13,11 @@ MODEL_NAME = "nomic-embed-text"
 
 class RAGQuery:
     def __init__(self):
-        # Embeddings con Ollama
-        self.embeddings = OllamaEmbeddings(model=MODEL_NAME)
+        # Embeddings con Ollama (timeout corto para fallo rápido)
+        self.embeddings = OllamaEmbeddings(
+            model=MODEL_NAME,
+            client_kwargs={"timeout": 10},
+        )
 
         # Cargar Chroma persistente
         self.db = Chroma(

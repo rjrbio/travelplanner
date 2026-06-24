@@ -25,6 +25,65 @@ def _mock_response(destino: str, dias: int) -> str:
     )
 
 
+def _format_attractions(atracciones: list) -> str:
+    if not atracciones:
+        return ""
+    lines = ["\n### Atracciones destacadas\n"]
+    for a in atracciones[:5]:
+        if isinstance(a, dict):
+            name = a.get("name", a.get("nombre", ""))
+            desc = a.get("description", a.get("descripcion", ""))
+            precio = a.get("price", a.get("precio", ""))
+            rating = a.get("rating", "")
+            parts = [f"- **{name}**" if name else ""]
+            if desc:
+                parts.append(f"  {desc[:120]}")
+            if precio or rating:
+                extra = "  " + " · ".join(filter(None, [
+                    f"€{precio}" if precio else "",
+                    f"⭐ {rating}" if rating else "",
+                ]))
+                parts.append(extra)
+            lines.append("\n".join(parts))
+        else:
+            lines.append(f"- {a}")
+    return "\n".join(lines)
+
+
+def _format_itinerario(itinerario: dict, destino: str, dias: int) -> str:
+    if not itinerario or not itinerario.get("days"):
+        return "\n".join(f"- Día {i+1}: Exploración en {destino}" for i in range(dias))
+
+    lines = ["\n### Itinerario\n"]
+    for dia in itinerario["days"]:
+        if isinstance(dia, dict):
+            titulo = dia.get("title", dia.get("nombre", f"Día"))
+            desc = dia.get("description", dia.get("descripcion", ""))
+            acts = dia.get("suggested_activities", [])
+            lines.append(f"#### {titulo}")
+            if desc:
+                lines.append(f"{desc}")
+            if acts:
+                for act in acts[:3]:
+                    if isinstance(act, dict):
+                        lines.append(f"- {act.get('name', act.get('nombre', ''))}")
+                    else:
+                        lines.append(f"- {act}")
+            lines.append("")
+        else:
+            lines.append(f"- {dia}")
+
+    extras = []
+    if itinerario.get("tips"):
+        extras.append(f"\n**Consejos:** {' '.join(itinerario['tips'][:3])}")
+    if itinerario.get("weather"):
+        extras.append(f"**Clima:** {itinerario['weather'][:200]}")
+    if extras:
+        lines.append("\n".join(extras))
+
+    return "\n".join(lines)
+
+
 def _extract_destination(message: str) -> str | None:
     stop_words = {"para", "por", "durante", "en", "de", "con", "desde",
                   "hasta", "un", "una", "el", "la", "los", "las", "del"}
@@ -83,27 +142,16 @@ def chat(session_id: str, request: ChatRequest):
     else:
         try:
             from graph.graph import ejecutar_viaje
-            with ThreadPoolExecutor(max_workers=1) as pool:
-                futuro = pool.submit(ejecutar_viaje, destino, dias)
-                resultado = futuro.result(timeout=_TIMEOUT)
+            resultado = ejecutar_viaje(destino, dias)
             plan = resultado.get("mensaje_motivacional", "")
-            opciones = resultado.get("opciones_busqueda", [])
+            atracciones = resultado.get("opciones_busqueda", [])
             itinerario = resultado.get("itinerario", {})
 
             bot_response = f"## {destino} — {dias} días\n\n"
-            bot_response += f"{plan}\n\n"
-
-            if opciones:
-                bot_response += "### Opciones encontradas\n"
-                for op in opciones[:5]:
-                    bot_response += f"- {op}\n"
-                bot_response += "\n"
-
-            if itinerario:
-                bot_response += "### Itinerario\n"
-                for dia in itinerario.get("itinerary", []):
-                    bot_response += f"- {dia}\n"
-        except (TimeoutError, Exception):
+            bot_response += f"{plan}\n"
+            bot_response += _format_attractions(atracciones)
+            bot_response += _format_itinerario(itinerario, destino, dias)
+        except Exception:
             bot_response = _mock_response(destino, dias)
 
     SessionManager.append_message(session_id, "bot", bot_response)
