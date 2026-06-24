@@ -2,27 +2,65 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Chatbot de Viajes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TravelPlanner - Asistente de Viajes</title>
     <link rel="stylesheet" href="/ui/styles.css">
 </head>
 <body>
+    <div class="app-container">
 
-<div class="chat-container">
+        <header class="app-header">
+            <div class="header-content">
+                <div class="header-icon">&#9992;</div>
+                <div>
+                    <h1>TravelPlanner</h1>
+                    <p class="header-subtitle">Asistente de Viajes Inteligente</p>
+                </div>
+            </div>
+            <button id="end-session" class="btn btn-danger" title="Nueva conversaci&oacute;n">
+                <span class="btn-icon">&#8635;</span>
+                <span class="btn-label">Nuevo</span>
+            </button>
+        </header>
 
-    <div class="header">
-        <h2>Asistente de Viajes</h2>
-        <button id="end-session" class="end-btn">Finalizar sesión</button>
+        <div id="messages" class="messages-container">
+            <div class="welcome-message">
+                <div class="welcome-icon">&#127758;</div>
+                <h2>Bienvenido a TravelPlanner</h2>
+                <p>Escribe tu destino y te ayudar&eacute; a planificar el viaje perfecto.</p>
+                <div class="example-chips">
+                    <span class="chip" data-text="Quiero viajar a Par&iacute;s por 5 d&iacute;as">&#127467;&#65121;&#127479; Par&iacute;s 5 d&iacute;as</span>
+                    <span class="chip" data-text="Viajar a Madrid 3 d&iacute;as">&#127466;&#127480; Madrid 3 d&iacute;as</span>
+                    <span class="chip" data-text="Visitar Roma 4 d&iacute;as">&#127470;&#127465; Roma 4 d&iacute;as</span>
+                    <span class="chip" data-text="Nueva York 7 d&iacute;as">&#127482;&#127480; Nueva York 7 d&iacute;as</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-text">Planificando tu viaje...</span>
+        </div>
+
+        <div class="input-container">
+            <div class="input-wrapper">
+                <input
+                    id="input"
+                    type="text"
+                    placeholder="Ej: Quiero viajar a Par&iacute;s por 5 d&iacute;as"
+                    autofocus
+                />
+                <button id="send-btn" class="btn btn-primary" title="Enviar">
+                    <span class="send-icon">&#10148;</span>
+                </button>
+            </div>
+            <p class="input-hint">Presiona Enter para enviar</p>
+        </div>
+
     </div>
 
-    <div id="messages" class="messages"></div>
-
-    <div class="input-area">
-        <input id="input" type="text" placeholder="Escribe tu mensaje...">
-        <button id="send-btn" class="send-btn">Enviar</button>
-    </div>
-
-</div>
-
-<script src="/ui/chat.js"></script>
+    <script src="/ui/chat.js"></script>
 </body>
 </html>
