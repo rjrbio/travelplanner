@@ -225,13 +225,14 @@ MVP listo para demo.
 
 ## ✈️ **APIs de Vuelos**
 ### **1. Amadeus Travel APIs**
-[https://developers.amadeus.com](https://developers.amadeus.com)
+[https://developers.amadeus.com](https://developers.amadeus.com)--prueba gratuita
 
 ### **2. Skyscanner API (RapidAPI)**
-`https://rapidapi.com/skyscanner/api/skyscanner-flight-search` [(rapidapi.com in Bing)](https://www.bing.com/search?q="https%3A%2F%2Frapidapi.com%2Fskyscanner%2Fapi%2Fskyscanner-flight-search")
+`https://rapidapi.com/skyscanner/api/skyscanner-flight-search` [(rapidapi.com in Bing)](https://www.bing.com/search?q="https%3A%2F%2Frapidapi.com%2Fskyscanner%2Fapi%2Fskyscanner-flight-search") -- ya no funciona 
 
 ### **3. AviationStack**
-[https://aviationstack.com](https://aviationstack.com)
+[https://aviationstack.com](https://aviationstack.com) la capa gratuita solo incluye  Full Aviation Data Full Aviation Data
+Real-Time Flights Real-Time Flights , HTTPS Encryption 
 
 ---
 
