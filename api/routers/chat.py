@@ -223,9 +223,7 @@ def chat(session_id: str, request: ChatRequest):
             f"Puedo prepararte un itinerario para Madrid, Barcelona, Sevilla, Granada, Valencia, "
             f"San Sebastián, Bilbao, Málaga, Toledo, Salamanca y muchos más rincones increíbles de España."
         )
-    elif not destino or (not is_trip and len(request.message.split()) < 4):
-        bot_response = _conversational_response(request.message, history[:-1])
-    else:
+    elif destino and is_trip:
         try:
             from graph.graph import ejecutar_viaje
             resultado = ejecutar_viaje(destino, dias, conversation_history=history[:-1])
@@ -242,6 +240,8 @@ def chat(session_id: str, request: ChatRequest):
         except Exception:
             logger.exception("Graph failed for session %s dest=%s", session_id, destino)
             bot_response = _conversational_response(request.message, history[:-1])
+    else:
+        bot_response = _conversational_response(request.message, history[:-1])
 
     SessionManager.append_message(session_id, "bot", bot_response)
     return {"response": bot_response}

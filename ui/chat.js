@@ -275,13 +275,7 @@
     await startSession();
 
     const welcomeHTML =
-      '<div class="welcome__globe">' +
-      '<svg viewBox="0 0 120 120" width="80" height="80"><circle cx="60" cy="60" r="56" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.15"/>' +
-      '<ellipse cx="60" cy="60" rx="56" ry="28" fill="none" stroke="currentColor" stroke-width="1" opacity="0.1"/>' +
-      '<ellipse cx="60" cy="60" rx="56" ry="28" fill="none" stroke="currentColor" stroke-width="1" opacity="0.1" transform="rotate(60 60 60)"/>' +
-      '<ellipse cx="60" cy="60" rx="56" ry="28" fill="none" stroke="currentColor" stroke-width="1" opacity="0.1" transform="rotate(-60 60 60)"/>' +
-      '<circle cx="60" cy="60" r="20" fill="none" stroke="currentColor" stroke-width="1" opacity="0.15"/>' +
-      '</svg></div>' +
+      '<div class="welcome__logo"><img src="/ui/travelimg.jpg" alt="TravelPlanner"></div>' +
       '<h1 class="welcome__title">Nueva conversaci\u00f3n</h1>' +
       '<p class="welcome__desc">Cu\u00e9ntame a d\u00f3nde quieres viajar</p>';
     const div = document.createElement('div');
@@ -667,8 +661,8 @@
     try {
       var res = await fetch('/rag/upload', { method: 'POST', body: form });
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      el.uploadProgressText.textContent = 'Subido. Reindexando...';
-      await reindexAll();
+      var upData = await res.json();
+      el.uploadProgressText.textContent = 'Indexado (' + (upData.chunks || '?') + ' chunks)';
       showToast('Documento subido e indexado');
       _pendingFile = null;
       el.uploadBtn.disabled = true;

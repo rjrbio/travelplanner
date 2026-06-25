@@ -137,6 +137,35 @@ class _BatchedEmbeddings:
         return self._embed_batch([text])[0]
 
 
+def index_file(path: Path, chroma_dir: Path | None = None) -> dict:
+    """Indexa un único archivo y lo añade al vectorstore existente sin reindexar los demás."""
+    chroma_dir = chroma_dir or CHROMA_DIR
+    docs = load_file(path)
+    if not docs:
+        return {"status": "empty", "chunks": 0}
+
+    chunks = split_documents(docs)
+    filename = path.stem.lower()
+    ids = [f"{filename}_{i}" for i in range(len(chunks))]
+    embeddings = _BatchedEmbeddings(model=MODEL_NAME, base_url=OLLAMA_URL)
+
+    logger.info("Indexando '%s': %d chunks", path.name, len(chunks))
+    try:
+        if chroma_dir.exists():
+            db = Chroma(persist_directory=str(chroma_dir), embedding_function=embeddings)
+            db.add_documents(documents=chunks, ids=ids)
+        else:
+            Chroma.from_documents(
+                documents=chunks, embedding=embeddings,
+                ids=ids, persist_directory=str(chroma_dir),
+            )
+        logger.info("Indexación de '%s' completada", path.name)
+        return {"status": "ok", "chunks": len(chunks)}
+    except Exception:
+        logger.exception("Error indexando '%s'", path.name)
+        raise
+
+
 def build_vectorstore(chunks, chroma_dir: Path | None = None):
     chroma_dir = chroma_dir or CHROMA_DIR
     embeddings = _BatchedEmbeddings(model=MODEL_NAME, base_url=OLLAMA_URL)

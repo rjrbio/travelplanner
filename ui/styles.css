@@ -116,7 +116,7 @@ body {
 .sidebar__brand { cursor:pointer; }
 .sidebar__brand:hover .sidebar__title { color:var(--primary); }
 .sidebar__logo { color:var(--primary); margin-bottom:4px; }
-.sidebar__logo img { border-radius:50%; object-fit:cover; display:block; }
+.sidebar__logo img { width:54px; height:54px; border-radius:50%; object-fit:cover; display:block; }
 .sidebar__title { font-size:17px; font-weight:700; color:var(--text); letter-spacing:-0.3px; }
 .sidebar__sub { font-size:11px; color:var(--text-ter); text-transform:uppercase; letter-spacing:1.5px; }
 .sidebar__nav {
@@ -236,7 +236,8 @@ body {
     max-width:460px;
     margin:0 auto;
 }
-.welcome__globe { margin-bottom:16px; color:var(--primary); opacity:0.6; }
+.welcome__logo { margin-bottom:20px; }
+.welcome__logo img { width:200px; height:200px; border-radius:50%; object-fit:cover; display:block; margin:0 auto; box-shadow:0 8px 32px rgba(74,108,247,0.18); }
 .welcome__title { font-size:26px; font-weight:800; color:var(--text); letter-spacing:-0.5px; margin-bottom:8px; }
 .welcome__desc { font-size:14px; color:var(--text-sec); margin-bottom:28px; line-height:1.5; }
 .welcome__chips { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
@@ -599,9 +600,10 @@ body {
 .ragadmin__btn--danger { background:var(--danger); }
 
 .ragadmin__progress {
-    margin-top:12px; display:flex; align-items:center; gap:10px;
+    display:none; margin-top:12px; align-items:center; gap:10px;
     font-size:13px; color:var(--text-sec);
 }
+.ragadmin__progress:not([hidden]) { display:flex; }
 
 .ragadmin__progress-bar {
     flex:1; height:6px; border-radius:3px; background:var(--border);

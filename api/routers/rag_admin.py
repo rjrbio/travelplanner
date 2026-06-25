@@ -62,7 +62,13 @@ def upload_document(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Error guardando archivo: {exc}")
 
-    return {"status": "uploaded", "path": str(dest.relative_to(DOCS_DIR)), "size": len(content)}
+    try:
+        from rag.ingest import index_file
+        result = index_file(dest)
+        return {"status": "uploaded", "path": str(dest.relative_to(DOCS_DIR)), "size": len(content), "chunks": result["chunks"]}
+    except Exception as exc:
+        logger.exception("Error indexando archivo tras subida")
+        raise HTTPException(status_code=500, detail=f"Archivo guardado pero error al indexar: {exc}")
 
 
 @router.post("/reindex")
