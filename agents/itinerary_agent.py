@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 import os
 import re
 
@@ -7,7 +7,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from agents.utils import strip_thinking
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_URL = os.getenv("OLLAMA_API_BASE_URL", "http://localhost:11434")
 logger = logging.getLogger(__name__)
 
 

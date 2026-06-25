@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 import os
 import re
 
@@ -13,7 +13,7 @@ from agents.utils import strip_thinking, format_history
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_URL = os.getenv("OLLAMA_API_BASE_URL", "http://localhost:11434")
 
 
 # ─── Helpers de extracción ────────────────────────────────────────────────────

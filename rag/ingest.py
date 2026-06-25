@@ -1,4 +1,4 @@
-import os
+﻿import os
 import logging
 from pathlib import Path
 
@@ -25,7 +25,7 @@ CIUDADES = [
     "bilbao", "palma", "alicante", "tenerife",
 ]
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_URL = os.getenv("OLLAMA_API_BASE_URL", "http://localhost:11434")
 
 LOADER_MAP = {
     ".pdf": PyPDFLoader,

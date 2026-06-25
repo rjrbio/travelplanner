@@ -1,4 +1,4 @@
-import os
+﻿import os
 
 import requests
 from fastapi import APIRouter
@@ -8,7 +8,7 @@ from api.deps.database import get_session
 
 router = APIRouter()
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_URL = os.getenv("OLLAMA_API_BASE_URL", "http://localhost:11434")
 
 
 @router.get("/")

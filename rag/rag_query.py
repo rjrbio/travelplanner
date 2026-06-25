@@ -1,4 +1,4 @@
-import os
+﻿import os
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent
 CHROMA_DIR = BASE_DIR / "embeddings" / "vectorstore"
 
 MODEL_NAME = "nomic-embed-text"
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_URL = os.getenv("OLLAMA_API_BASE_URL", "http://localhost:11434")
 
 
 class RAGQuery:
