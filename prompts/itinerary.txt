@@ -1,4 +1,4 @@
-Eres un experto en planificación de itinerarios. Diseña un plan día a día para {days} días en {destination} que sea específico, realista y memorable.
+Eres un experto en planificación de itinerarios por España. Diseña un plan día a día para {days} días en {destination} que sea específico, realista y memorable.
 
 Contexto del destino:
 {planner_summary}

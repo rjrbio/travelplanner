@@ -1,4 +1,5 @@
 ﻿import os
+import re
 import logging
 from pathlib import Path
 
@@ -20,13 +21,15 @@ CHROMA_DIR = BASE_DIR / "embeddings" / "vectorstore"
 
 MODEL_NAME = "nomic-embed-text"
 
-CIUDADES = [
-    "madrid", "barcelona", "sevilla", "valencia",
-    "malaga", "granada", "cordoba", "andalucia",
-    "bilbao", "palma", "alicante", "tenerife",
-]
-
 OLLAMA_URL = os.getenv("OLLAMA_API_BASE_URL", "http://localhost:11434")
+
+# Palabras que aparecen en nombres de archivo pero NO son ciudades
+_PALABRAS_NO_CIUDAD = {
+    "general", "espana", "spain", "guia", "info", "datos",
+    "transporte", "gastronomia", "barrios", "itinerario",
+    "seguridad", "clima", "eventos", "tips", "dias", "semana",
+    "semanas", "doc", "archivo", "documento",
+}
 
 LOADER_MAP = {
     ".pdf": PyPDFLoader,
@@ -36,15 +39,27 @@ LOADER_MAP = {
 }
 
 
+def _ciudad_desde_nombre(nombre: str) -> str | None:
+    """Extrae el nombre de ciudad de un filename o carpeta dividiéndolo por separadores
+    y descartando palabras que no son ciudades (categorías, números, etc.)."""
+    partes = re.split(r"[_\-\s]+", nombre.lower())
+    return next(
+        (p for p in partes if p and not p.isdigit() and p not in _PALABRAS_NO_CIUDAD),
+        None,
+    )
+
+
 def extract_metadata(path: Path):
     relative = path.relative_to(DOCS_DIR)
     categoria = relative.parts[0] if len(relative.parts) > 1 else "general"
     filename = path.stem.lower()
-    ciudad = next((c for c in CIUDADES if c in filename), None)
-    # Try to infer city from parent folder as fallback
+
+    ciudad = _ciudad_desde_nombre(filename)
+
+    # Fallback: intentar inferir ciudad desde la carpeta padre
     if not ciudad and len(relative.parts) > 2:
-        folder_lower = relative.parts[-2].lower()
-        ciudad = next((c for c in CIUDADES if c in folder_lower), None)
+        ciudad = _ciudad_desde_nombre(relative.parts[-2])
+
     return {
         "categoria": categoria,
         "ciudad": ciudad,

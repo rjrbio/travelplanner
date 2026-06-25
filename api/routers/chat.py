@@ -72,6 +72,46 @@ def _is_trip_request(message: str) -> bool:
     return any(re.search(kw, msg_lower) for kw in trip_keywords)
 
 
+_DESTINOS_FUERA_ESPANA = {
+    # Ciudades internacionales frecuentes
+    "paris", "parís", "roma", "rome", "london", "londres",
+    "tokio", "tokyo", "nueva york", "new york", "berlin", "berlín",
+    "amsterdam", "dubai", "bangkok", "sydney", "buenos aires",
+    "ciudad de mexico", "ciudad de méxico", "mexico", "méxico",
+    "miami", "los angeles", "chicago", "toronto", "moscu", "moscú",
+    "beijing", "pekín", "pekin", "shanghai", "hong kong",
+    "singapur", "singapore", "cairo", "el cairo", "nairobi",
+    "marrakech", "marrakesh", "lisboa", "lisbon", "oporto", "porto",
+    "niza", "nice", "venecia", "venice", "florencia", "florence",
+    "milan", "milán", "napoles", "nápoles", "naples",
+    "viena", "vienna", "praga", "prague", "budapest",
+    "varsovia", "warsaw", "estocolmo", "stockholm", "oslo",
+    "copenhague", "copenhagen", "helsinki", "dublin", "edimburgo",
+    "edinburgh", "atenas", "athens", "estambul", "istanbul",
+    "rio de janeiro", "río de janeiro", "sao paulo", "são paulo",
+    "bogota", "bogotá", "lima", "santiago", "caracas",
+    "nueva delhi", "new delhi", "mumbai", "bombay",
+    "kuala lumpur", "jakarta", "manila", "seul", "seúl", "seoul",
+    # Países completos cuando se mencionan como destino
+    "japon", "japón", "china", "india", "brasil", "brazil",
+    "argentina", "colombia", "chile", "peru", "perú",
+    "marruecos", "morocco", "egipto", "egypt",
+    "tailandia", "thailand", "indonesia", "vietnam",
+    "estados unidos", "usa", "reino unido", "uk",
+    "alemania", "germany", "francia", "france",
+    "italia", "italy", "portugal", "holanda", "netherlands",
+    "belgica", "bélgica", "belgium", "suiza", "switzerland", "austria",
+    "grecia", "greece", "turquia", "turquía", "turkey",
+    "canada", "australia", "nueva zelanda", "new zealand",
+    "sudafrica", "sudáfrica", "south africa", "nigeria", "kenya",
+}
+
+
+def _es_destino_espanol(destination: str) -> bool:
+    """Devuelve False si el destino está claramente fuera de España."""
+    return destination.lower().strip() not in _DESTINOS_FUERA_ESPANA
+
+
 # ─── Respuesta conversacional (sin destino claro) ────────────────────────────
 
 def _conversational_response(user_message: str, history: list) -> str:
@@ -175,7 +215,15 @@ def chat(session_id: str, request: ChatRequest):
     dias = _extract_days(request.message)
     is_trip = _is_trip_request(request.message)
 
-    if not destino or (not is_trip and len(request.message.split()) < 4):
+    if destino and is_trip and not _es_destino_espanol(destino):
+        bot_response = (
+            f"Lo siento, solo puedo ayudarte a planificar viajes por **España**. "
+            f"{destino} queda fuera de mi área de especialización. "
+            f"¿Te animas a descubrir algún destino español? "
+            f"Puedo prepararte un itinerario para Madrid, Barcelona, Sevilla, Granada, Valencia, "
+            f"San Sebastián, Bilbao, Málaga, Toledo, Salamanca y muchos más rincones increíbles de España."
+        )
+    elif not destino or (not is_trip and len(request.message.split()) < 4):
         bot_response = _conversational_response(request.message, history[:-1])
     else:
         try:
