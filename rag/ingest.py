@@ -2,6 +2,7 @@
 import logging
 from pathlib import Path
 
+import httpx
 from langchain_community.document_loaders import (
     PyPDFLoader,
     TextLoader,
@@ -90,17 +91,41 @@ def split_documents(documents, chunk_size=500, chunk_overlap=100):
     return splitter.split_documents(documents)
 
 
+class _BatchedEmbeddings:
+    """Embedding function que llama a Ollama en lotes pequeños para evitar timeouts."""
+
+    def __init__(self, model: str, base_url: str, batch_size: int = 32, timeout: int = 120):
+        self.model = model
+        self.base_url = base_url.rstrip("/")
+        self.batch_size = batch_size
+        self.timeout = timeout
+
+    def _embed_batch(self, texts: list[str]) -> list[list[float]]:
+        r = httpx.post(
+            f"{self.base_url}/api/embed",
+            json={"model": self.model, "input": texts},
+            timeout=self.timeout,
+        )
+        r.raise_for_status()
+        return r.json()["embeddings"]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        all_embeddings: list[list[float]] = []
+        total = len(texts)
+        for i in range(0, total, self.batch_size):
+            batch = texts[i: i + self.batch_size]
+            logger.info("Embeddings lote %d–%d / %d", i + 1, min(i + self.batch_size, total), total)
+            all_embeddings.extend(self._embed_batch(batch))
+        return all_embeddings
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed_batch([text])[0]
+
+
 def build_vectorstore(chunks, chroma_dir: Path | None = None):
     chroma_dir = chroma_dir or CHROMA_DIR
-    embeddings = OllamaEmbeddings(
-        model=MODEL_NAME,
-        base_url=OLLAMA_URL,
-        client_kwargs={"timeout": 120},
-    )
-    ids = []
-    for i, chunk in enumerate(chunks):
-        filename = chunk.metadata.get("filename", "doc")
-        ids.append(f"{filename}_{i}")
+    embeddings = _BatchedEmbeddings(model=MODEL_NAME, base_url=OLLAMA_URL)
+    ids = [f"{chunk.metadata.get('filename', 'doc')}_{i}" for i, chunk in enumerate(chunks)]
     try:
         vectordb = Chroma.from_documents(
             documents=chunks,
@@ -120,7 +145,7 @@ def get_collection_stats(chroma_dir: Path | None = None) -> dict:
         embeddings = OllamaEmbeddings(
             model=MODEL_NAME,
             base_url=OLLAMA_URL,
-            client_kwargs={"timeout": 10},
+            client_kwargs={"timeout": 60},
         )
         db = Chroma(
             persist_directory=str(chroma_dir),
