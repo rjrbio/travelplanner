@@ -1,25 +1,24 @@
+import os
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 
-
 BASE_DIR = Path(__file__).resolve().parent
 CHROMA_DIR = BASE_DIR / "embeddings" / "vectorstore"
 
 MODEL_NAME = "nomic-embed-text"
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
 
 class RAGQuery:
     def __init__(self):
-        # Embeddings con Ollama (timeout corto para fallo rápido)
         self.embeddings = OllamaEmbeddings(
             model=MODEL_NAME,
+            base_url=OLLAMA_URL,
             client_kwargs={"timeout": 10},
         )
-
-        # Cargar Chroma persistente
         self.db = Chroma(
             persist_directory=str(CHROMA_DIR),
             embedding_function=self.embeddings

@@ -33,8 +33,8 @@ def _get_session_local():
     return _SessionLocal
 
 
-def SessionLocal():
-    return _get_session_local()
+def get_session():
+    return _get_session_local()()
 
 
 def init_db():

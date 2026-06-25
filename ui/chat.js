@@ -55,6 +55,8 @@
     ragStats: $('#ragStats'),
     statChunks: $('#statChunks'),
     statDocs: $('#statDocs'),
+    ollamaDot: $('#ollamaDot'),
+    ollamaLabel: $('#ollamaLabel'),
     dropzone: $('#dropzone'),
     fileInput: $('#fileInput'),
     docCategory: $('#docCategory'),
@@ -430,6 +432,29 @@
     el.docSearch.addEventListener('input', filterDocs);
     el.testSearchBtn.addEventListener('click', testSearch);
     el.testQuery.addEventListener('keydown', function (e) { if (e.key === 'Enter') testSearch(); });
+    checkOllamaHealth();
+    setInterval(checkOllamaHealth, 30000);
+  }
+
+  async function checkOllamaHealth() {
+    var dot = el.ollamaDot;
+    var label = el.ollamaLabel;
+    if (!dot) return;
+    try {
+      var res = await fetch('/health/ollama');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var data = await res.json();
+      if (data.status === 'connected') {
+        dot.className = 'ragadmin__stat-indicator ragadmin__stat-indicator--ok';
+        label.textContent = 'Ollama conectado';
+      } else {
+        dot.className = 'ragadmin__stat-indicator ragadmin__stat-indicator--err';
+        label.textContent = 'Ollama no disponible';
+      }
+    } catch (e) {
+      dot.className = 'ragadmin__stat-indicator ragadmin__stat-indicator--err';
+      label.textContent = 'Ollama no disponible';
+    }
   }
 
   var _pendingFile = null;

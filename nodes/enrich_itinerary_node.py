@@ -1,22 +1,11 @@
 def enrich_itinerary_node(state):
-    """
-    Node del grafo:
-    - Combina el plan del PlannerAgent
-    - Inserta vuelos
-    - Inserta atracciones
-    - Inserta datos del RAG
-    - Devuelve el itinerario final enriquecido
-    """
-
     plan = state.get("plan", {})
-    flights = state.get("flights", [])
     attractions = state.get("attractions", [])
     rag_data = state.get("rag_data", {})
 
     enriched = {
         "summary": plan.get("summary"),
         "days": [],
-        "flights": flights,
         "attractions": attractions,
         "tips": rag_data.get("tips"),
         "weather": rag_data.get("weather"),

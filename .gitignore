@@ -35,6 +35,7 @@ htmlcov/
 *.key
 *.pem
 
-# --- Chroma vector store ---
+# --- ChromaDB ---
 ej-chroma*
 chroma_data/
+rag/embeddings/vectorstore/chroma.sqlite3

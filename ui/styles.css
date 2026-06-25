@@ -488,7 +488,7 @@ body {
 }
 
 .ragadmin__stats {
-    display:grid; grid-template-columns:1fr 1fr; gap:12px;
+    display:grid; grid-template-columns:repeat(3,1fr); gap:12px;
 }
 
 .ragadmin__stat-card {
@@ -501,6 +501,21 @@ body {
 .ragadmin__stat-num {
     font-size:32px; font-weight:700; color:var(--primary);
 }
+
+.ragadmin__stat-card--ollama {
+    flex-direction:row; align-items:center; justify-content:center; gap:8px;
+    font-size:14px; font-weight:500;
+}
+
+.ragadmin__stat-indicator {
+    width:10px; height:10px; border-radius:50%; display:inline-block;
+}
+
+.ragadmin__stat-indicator--ok { background:#22c55e; box-shadow:0 0 6px rgba(34,197,94,.5); }
+
+.ragadmin__stat-indicator--err { background:#ef4444; box-shadow:0 0 6px rgba(239,68,68,.5); }
+
+.ragadmin__stat-indicator--unknown { background:#a1a1aa; }
 
 .ragadmin__panel {
     background:var(--surface); border-radius:var(--radius-sm);

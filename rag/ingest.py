@@ -25,6 +25,8 @@ CIUDADES = [
     "bilbao", "palma", "alicante", "tenerife",
 ]
 
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+
 LOADER_MAP = {
     ".pdf": PyPDFLoader,
     ".txt": lambda p: TextLoader(str(p), encoding="utf-8"),
@@ -92,6 +94,7 @@ def build_vectorstore(chunks, chroma_dir: Path | None = None):
     chroma_dir = chroma_dir or CHROMA_DIR
     embeddings = OllamaEmbeddings(
         model=MODEL_NAME,
+        base_url=OLLAMA_URL,
         client_kwargs={"timeout": 120},
     )
     ids = []
@@ -116,6 +119,7 @@ def get_collection_stats(chroma_dir: Path | None = None) -> dict:
     try:
         embeddings = OllamaEmbeddings(
             model=MODEL_NAME,
+            base_url=OLLAMA_URL,
             client_kwargs={"timeout": 10},
         )
         db = Chroma(

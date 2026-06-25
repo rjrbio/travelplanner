@@ -1,5 +1,9 @@
+import os
+
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
+
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
 
 class SearchAgent:
@@ -14,7 +18,10 @@ class SearchAgent:
     @property
     def llm(self):
         if self._llm is None:
-            self._llm = ChatOllama(model="qwen3:1.7b", temperature=0.7, num_predict=1024, client_kwargs={"timeout": 60})
+            self._llm = ChatOllama(
+                model="qwen3:1.7b", temperature=0.7, num_predict=1024,
+                base_url=OLLAMA_URL, client_kwargs={"timeout": 60},
+            )
         return self._llm
 
     def search_options(self, query: str) -> list[str]:

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session as DBSession
 
-from api.deps.database import SessionLocal, db_available
+from api.deps.database import get_session, db_available
 from api.models.models import Session, Message
 
 
@@ -14,7 +14,7 @@ class SessionManager:
     def _ensure_db() -> DBSession | None:
         if not db_available():
             return None
-        return SessionLocal()
+        return get_session()
 
     @staticmethod
     def _close_db(db: DBSession | None):
