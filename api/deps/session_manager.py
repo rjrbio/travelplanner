@@ -81,6 +81,17 @@ class SessionManager:
             SessionManager._memory[session_id] = []
 
     @staticmethod
+    def session_exists(session_id: str) -> bool:
+        db = SessionManager._ensure_db()
+        if db is not None:
+            try:
+                return db.query(Session).filter(Session.id == session_id).first() is not None
+            finally:
+                db.close()
+        else:
+            return session_id in SessionManager._memory
+
+    @staticmethod
     def delete(session_id: str):
         db = SessionManager._ensure_db()
         if db is not None:

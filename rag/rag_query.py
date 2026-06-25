@@ -17,7 +17,7 @@ class RAGQuery:
         self.embeddings = OllamaEmbeddings(
             model=MODEL_NAME,
             base_url=OLLAMA_URL,
-            client_kwargs={"timeout": 10},
+            client_kwargs={"timeout": 60},
         )
         self.db = Chroma(
             persist_directory=str(CHROMA_DIR),
@@ -35,20 +35,17 @@ class RAGQuery:
         metadata_filter permite filtrar por ciudad, categoría, etc.
         """
 
-        if metadata_filter:
-            results = self.db.similarity_search(
-                query=query,
-                k=k,
-                filter=metadata_filter
-            )
-        else:
-            results = self.db.similarity_search(query=query, k=k)
+        kwargs = {"filter": metadata_filter} if metadata_filter else {}
+        results = self.db.similarity_search_with_relevance_scores(
+            query=query, k=k, **kwargs
+        )
 
         formatted = []
-        for r in results:
+        for doc, score in results:
             formatted.append({
-                "content": r.page_content,
-                "metadata": r.metadata
+                "content": doc.page_content,
+                "metadata": doc.metadata,
+                "score": round(score, 3),
             })
 
         return formatted

@@ -740,7 +740,7 @@
       }
       var html = results.map(function (r, i) {
         var cat = (r.metadata && r.metadata.categoria) || '';
-        var score = r.distance ? ' (' + (1 - r.distance).toFixed(2) + ')' : '';
+        var score = r.score != null ? ' (' + r.score.toFixed(2) + ')' : '';
         return '<div class="ragadmin__test-item"><strong>#' + (i + 1) + score + '</strong> ' + esc(r.content.slice(0, 300)) + '<div class="ragadmin__doc-meta">' + esc(cat) + '</div></div>';
       }).join('');
       el.testResults.innerHTML = html;

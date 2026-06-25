@@ -28,6 +28,7 @@ services:
       DATABASE_URL: postgresql://travelplanner:travelplanner@db:5432/travelplanner
       OLLAMA_URL: http://ollama:11434
       PYTHONUNBUFFERED: 1
+      RAPIDAPI_KEY: ${RAPIDAPI_KEY}
     depends_on:
       db:
         condition: service_healthy

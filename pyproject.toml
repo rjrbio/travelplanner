@@ -1,7 +1,7 @@
 [project]
-name = "trabajo-grupal"
+name = "travelplanner"
 version = "0.1.0"
-description = "Add your description here"
+description = "Planificador de viajes inteligente con LangGraph y Ollama"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -20,8 +20,13 @@ dependencies = [
     "requests>=2.31.0",
     "pypdf>=4.0.0",
     "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
     "pytest>=8.0.0",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]

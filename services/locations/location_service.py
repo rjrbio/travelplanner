@@ -1,8 +1,6 @@
-import os
 import requests
 
-RAPIDAPI_HOST = "booking-com15.p.rapidapi.com"
-RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
+from services.config import RAPIDAPI_HOST, RAPIDAPI_KEY
 
 
 class LocationService:

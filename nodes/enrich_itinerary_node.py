@@ -7,6 +7,7 @@ def enrich_itinerary_node(state):
         "summary": plan.get("summary"),
         "days": [],
         "attractions": attractions,
+        "flights": state.get("flights", []),
         "tips": rag_data.get("tips"),
         "weather": rag_data.get("weather"),
         "transport": rag_data.get("transport"),

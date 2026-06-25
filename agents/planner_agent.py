@@ -1,9 +1,11 @@
-﻿import os
+﻿import logging
+import os
 
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+logger = logging.getLogger(__name__)
 
 
 class PlannerAgent:
@@ -25,7 +27,7 @@ class PlannerAgent:
         return self._llm
 
     def plan_trip(self, destination: str, days: int, context: str = "") -> dict:
-        print(f"Pensando un viaje a {destination} de {days} días...")
+        logger.info("Planificando viaje a '%s' (%d días)", destination, days)
 
         with open("prompts/planner.txt", "r", encoding="utf-8") as file:
             prompt_text = file.read()

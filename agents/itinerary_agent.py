@@ -1,10 +1,12 @@
-﻿import os
+﻿import logging
+import os
 import re
 
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+logger = logging.getLogger(__name__)
 
 
 class ItineraryAgent:
@@ -29,7 +31,7 @@ class ItineraryAgent:
         attractions: list | None = None,
         rag_data: dict | None = None,
     ) -> dict:
-        print(f"Generando itinerario de {days} días para {destination}...")
+        logger.info("Generando itinerario de %d días para '%s'", days, destination)
 
         attractions_text = "\n".join(
             f"- {a.get('name', a.get('nombre', str(a)))}"
@@ -60,9 +62,7 @@ class ItineraryAgent:
         })
 
         raw = response.content.strip()
-        print("--- Itinerario generado ---")
-        print(raw[:500])
-        print("---------------------------")
+        logger.debug("Itinerario raw (primeros 500 chars): %s", raw[:500])
 
         parsed_days = self._parse_days(raw, destination, days, attractions or [])
 

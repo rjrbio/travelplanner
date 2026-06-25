@@ -1,10 +1,12 @@
+import logging
 import re
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from api.schemas.chat_schema import ChatRequest
 from api.deps.session_manager import SessionManager
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -128,6 +130,8 @@ def _extract_days(message: str) -> int:
 
 @router.post("/{session_id}")
 def chat(session_id: str, request: ChatRequest):
+    if not SessionManager.session_exists(session_id):
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
     SessionManager.append_message(session_id, "user", request.message)
 
     destino = _extract_destination(request.message)
@@ -152,6 +156,7 @@ def chat(session_id: str, request: ChatRequest):
             bot_response += _format_attractions(atracciones)
             bot_response += _format_itinerario(itinerario, destino, dias)
         except Exception:
+            logger.exception("Graph failed for session %s dest=%s", session_id, destino)
             bot_response = _mock_response(destino, dias)
 
     SessionManager.append_message(session_id, "bot", bot_response)

@@ -3,6 +3,7 @@ from typing import TypedDict, List
 
 class TravelState(TypedDict):
     destination: str
+    destination_city: str
     days: int
 
     # RAG context (de RAGAgent)

@@ -1,5 +1,9 @@
+import logging
+
 from langgraph.graph import StateGraph, START, END
 from graph.state import TravelState
+
+logger = logging.getLogger(__name__)
 
 
 def _get_agents():
@@ -33,17 +37,17 @@ def _build_graph():
     fetch_attractions = _get_nodes()[0]
 
     def rag_node(state: TravelState):
-        print("--- Consultando RAG ---")
+        logger.info("Consultando RAG para '%s'", state["destination"])
         destino = state["destination"]
         try:
             enriched = rag_runner({"destination_city": destino})
             return {"rag_data": enriched.get("rag_data", {})}
         except Exception:
-            print("--- RAG no disponible, continuando sin contexto ---")
+            logger.warning("RAG no disponible, continuando sin contexto")
             return {"rag_data": {}}
 
     def plan_node(state: TravelState):
-        print("--- Planificando viaje ---")
+        logger.info("Planificando viaje a '%s'", state["destination"])
         destino = state["destination"]
         dias = state["days"]
         context = _synthesize_rag_context(state.get("rag_data", {}))
@@ -51,7 +55,7 @@ def _build_graph():
         return {"planner_summary": respuesta["summary"]}
 
     def attractions_node(state: TravelState):
-        print("--- Buscando atracciones ---")
+        logger.info("Buscando atracciones para '%s'", state["destination"])
         destino = state["destination"]
         try:
             result = fetch_attractions({
@@ -60,10 +64,11 @@ def _build_graph():
             })
             return {"attractions": result.get("attractions", [])}
         except Exception:
+            logger.warning("No se pudieron obtener atracciones para '%s'", destino)
             return {"attractions": []}
 
     def itinerary_node(state: TravelState):
-        print("--- Generando itinerario con IA ---")
+        logger.info("Generando itinerario con IA para '%s'", state["destination"])
         destino = state["destination"]
         dias = state["days"]
         try:
@@ -85,7 +90,7 @@ def _build_graph():
                 }
             }
         except Exception:
-            print("--- ItineraryAgent falló, generando días básicos ---")
+            logger.exception("ItineraryAgent falló, generando días básicos")
             days_list = [
                 {
                     "title": f"Día {i+1} en {destino}",
@@ -141,7 +146,7 @@ def ejecutar_viaje(destino: str, dias: int) -> dict:
             "itinerario": itinerary,
         }
     except Exception:
-        import traceback; traceback.print_exc()
+        logger.exception("ejecutar_viaje falló para destino='%s'", destino)
         return {
             "destino": destino,
             "dias": dias,
