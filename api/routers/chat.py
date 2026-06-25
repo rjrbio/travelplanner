@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 
-from api.schemas.chat_schema import ChatRequest
+from api.chat_schema import ChatRequest
 from api.deps.session_manager import SessionManager
 from agents.utils import strip_thinking, format_history
 

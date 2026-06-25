@@ -1,2 +1,0 @@
-Eres un buscador experto. Inventa 3 opciones (un vuelo, un hotel, y un tour) para la búsqueda: {query}.
-Escribe cada opción en una nueva línea y no escribas introducciones, solo devuelve las opciones.

@@ -13,7 +13,7 @@ def _get_agents():
 
 
 def _get_nodes():
-    from nodes.fetch_attractions_node import fetch_attractions_node
+    from graph.nodes import fetch_attractions_node
     return fetch_attractions_node,
 
 

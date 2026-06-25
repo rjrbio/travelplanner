@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from nodes.fetch_attractions_node import fetch_attractions_node
+from graph.nodes import fetch_attractions_node
 
 
 def test_fetch_attractions_node():
