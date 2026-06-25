@@ -29,7 +29,7 @@ def _synthesize_rag_context(rag_data: dict) -> str:
         parts.append(f"Eventos: {'; '.join(rag_data['events'][:3])}")
     if rag_data.get("neighborhoods"):
         parts.append(f"Barrios: {'; '.join(rag_data['neighborhoods'][:3])}")
-    return "\n".join(parts) if parts else "No hay información adicional disponible."
+    return "\n".join(parts) if parts else ""
 
 
 def _build_graph():
@@ -38,9 +38,8 @@ def _build_graph():
 
     def rag_node(state: TravelState):
         logger.info("Consultando RAG para '%s'", state["destination"])
-        destino = state["destination"]
         try:
-            enriched = rag_runner({"destination_city": destino})
+            enriched = rag_runner({"destination_city": state["destination"]})
             return {"rag_data": enriched.get("rag_data", {})}
         except Exception:
             logger.warning("RAG no disponible, continuando sin contexto")
@@ -48,23 +47,25 @@ def _build_graph():
 
     def plan_node(state: TravelState):
         logger.info("Planificando viaje a '%s'", state["destination"])
-        destino = state["destination"]
-        dias = state["days"]
         context = _synthesize_rag_context(state.get("rag_data", {}))
-        respuesta = planner.plan_trip(destino, dias, context=context)
+        respuesta = planner.plan_trip(
+            destination=state["destination"],
+            days=state["days"],
+            context=context,
+            conversation_history=state.get("conversation_history", []),
+        )
         return {"planner_summary": respuesta["summary"]}
 
     def attractions_node(state: TravelState):
         logger.info("Buscando atracciones para '%s'", state["destination"])
-        destino = state["destination"]
         try:
             result = fetch_attractions({
-                "destination_city": destino,
-                "attractions_limit": 8,
+                "destination_city": state["destination"],
+                "attractions_limit": 9,
             })
             return {"attractions": result.get("attractions", [])}
         except Exception:
-            logger.warning("No se pudieron obtener atracciones para '%s'", destino)
+            logger.warning("No se pudieron obtener atracciones para '%s'", state["destination"])
             return {"attractions": []}
 
     def itinerary_node(state: TravelState):
@@ -81,28 +82,26 @@ def _build_graph():
                 attractions=state.get("attractions", []),
                 rag_data=state.get("rag_data", {}),
             )
-            days_list = result.get("itinerary", [])
             return {
                 "itinerary": {
                     "summary": state.get("planner_summary", f"Plan de {dias} días en {destino}"),
-                    "days": days_list,
+                    "days": result.get("itinerary", []),
                     "attractions": state.get("attractions", []),
                 }
             }
         except Exception:
-            logger.exception("ItineraryAgent falló, generando días básicos")
-            days_list = [
-                {
-                    "title": f"Día {i+1} en {destino}",
-                    "description": f"Exploración del día {i+1} en {destino}",
-                    "suggested_activities": [],
-                }
-                for i in range(dias)
-            ]
+            logger.exception("ItineraryAgent falló para '%s'", destino)
             return {
                 "itinerary": {
                     "summary": f"Plan de {dias} días en {destino}",
-                    "days": days_list,
+                    "days": [
+                        {
+                            "title": f"Día {i+1} en {destino}",
+                            "description": f"Exploración del día {i+1} en {destino}.",
+                            "suggested_activities": [],
+                        }
+                        for i in range(dias)
+                    ],
                     "attractions": [],
                 }
             }
@@ -132,17 +131,23 @@ def _get_graph():
     return _graph
 
 
-def ejecutar_viaje(destino: str, dias: int) -> dict:
+def ejecutar_viaje(destino: str, dias: int, conversation_history: list | None = None) -> dict:
     try:
         graph = _get_graph()
-        estado_inicial = {"destination": destino, "days": dias}
-        resultado_final = graph.invoke(estado_inicial)
-        itinerary = resultado_final.get("itinerary", {})
+        estado_inicial = {
+            "destination": destino,
+            "destination_city": destino,
+            "days": dias,
+            "conversation_history": conversation_history or [],
+            "user_message": "",
+        }
+        resultado = graph.invoke(estado_inicial)
+        itinerary = resultado.get("itinerary", {})
         return {
             "destino": destino,
             "dias": dias,
-            "mensaje_motivacional": resultado_final.get("planner_summary") or f"Plan de {dias} días en {destino}.",
-            "opciones_busqueda": resultado_final.get("attractions", []),
+            "mensaje_motivacional": resultado.get("planner_summary") or f"Plan de {dias} días en {destino}.",
+            "opciones_busqueda": resultado.get("attractions", []),
             "itinerario": itinerary,
         }
     except Exception:
@@ -160,16 +165,3 @@ def ejecutar_viaje(destino: str, dias: int) -> dict:
                 ],
             },
         }
-
-
-if __name__ == "__main__":
-    resultado = ejecutar_viaje("Kioto", 4)
-    print("\n--- PLAN ---\n")
-    print(resultado["mensaje_motivacional"])
-    print("\n--- ATRACCIONES ---")
-    for a in resultado["opciones_busqueda"]:
-        print(f" - {a}")
-    print("\n--- ITINERARIO ---")
-    it = resultado["itinerario"]
-    for dia in it.get("days", []):
-        print(f" {dia}")

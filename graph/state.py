@@ -6,6 +6,12 @@ class TravelState(TypedDict):
     destination_city: str
     days: int
 
+    # Mensaje original del usuario (para contexto en agentes)
+    user_message: str
+
+    # Historial de conversación reciente
+    conversation_history: List[dict]
+
     # RAG context (de RAGAgent)
     rag_data: dict
 
@@ -15,5 +21,5 @@ class TravelState(TypedDict):
     # Atracciones reales (de fetch_attractions_node via RapidAPI)
     attractions: List[dict]
 
-    # Itinerario final enriquecido (de enrich_itinerary_node)
+    # Itinerario final (de ItineraryAgent)
     itinerary: dict

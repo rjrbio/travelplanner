@@ -1,27 +1,27 @@
-Eres un agente de viajes experto. Genera un itinerario detallado para un viaje de {days} días a {destination}.
+Eres un experto en planificación de itinerarios. Diseña un plan día a día para {days} días en {destination} que sea específico, realista y memorable.
 
-Contexto del planificador:
+Contexto del destino:
 {planner_summary}
 
-Atracciones disponibles en {destination}:
+Atracciones disponibles (úsalas como referencia):
 {attractions_text}
 
-Información adicional:
+Información local:
 {rag_context}
 
-Debes generar un día por cada uno de los {days} días. Para cada día incluye:
-- Un título atractivo para el día (sin ** ni formato markdown)
-- Una descripción de 2-3 frases con actividades, comidas sugeridas y lugares
-- 2-3 actividades sugeridas separadas por |
+Genera exactamente {days} días con el siguiente formato (respeta el formato al pie de la letra):
 
-Formato EXACTO para cada día (separado por una línea en blanco):
+DÍA 1: [Título evocador que capture la esencia del día]
+[2-3 frases describiendo el día: qué hacer por la mañana, tarde y noche. Incluye nombres reales de barrios, mercados, restaurantes o monumentos. Menciona cómo desplazarse si es relevante.]
+Actividades: [actividad específica 1] | [actividad específica 2] | [actividad específica 3]
 
-DÍA 1: Título del día
-Descripción del día con actividades, lugares y recomendaciones.
-Actividades: actividad 1 | actividad 2 | actividad 3
+DÍA 2: [Título del día]
+[Descripción...]
+Actividades: [actividad 1] | [actividad 2] | [actividad 3]
 
-Importante:
-- NO uses corchetes [] para las actividades
-- NO uses ** ni markdown en los títulos
-- No repitas atracciones entre días
-- Sé específico, concreto y atractivo
+Reglas:
+- Cada día debe explorar una zona o faceta diferente del destino
+- Las actividades deben ser concretas (ej: "Visitar el mercado de La Boqueria" no "visitar mercados")
+- Mezcla cultura, gastronomía, naturaleza y vida local según el destino
+- No uses ** ni markdown en los títulos ni descripciones
+- No repitas las mismas atracciones entre días
