@@ -10,8 +10,7 @@ def _get_agents():
 
 def _get_nodes():
     from nodes.fetch_attractions_node import fetch_attractions_node
-    from nodes.enrich_itinerary_node import enrich_itinerary_node
-    return fetch_attractions_node, enrich_itinerary_node
+    return fetch_attractions_node,
 
 
 def _synthesize_rag_context(rag_data: dict) -> str:
@@ -31,7 +30,7 @@ def _synthesize_rag_context(rag_data: dict) -> str:
 
 def _build_graph():
     planner, rag_runner = _get_agents()
-    fetch_attractions, enrich_itinerary = _get_nodes()
+    fetch_attractions = _get_nodes()[0]
 
     def rag_node(state: TravelState):
         print("--- Consultando RAG ---")
@@ -57,28 +56,51 @@ def _build_graph():
         try:
             result = fetch_attractions({
                 "destination_city": destino,
-                "attractions_limit": 5,
+                "attractions_limit": 8,
             })
             return {"attractions": result.get("attractions", [])}
         except Exception:
             return {"attractions": []}
 
     def itinerary_node(state: TravelState):
-        print("--- Ensamblando itinerario final ---")
-        plan = {
-            "summary": state.get("planner_summary", ""),
-            "days": [],
-        }
+        print("--- Generando itinerario con IA ---")
+        destino = state["destination"]
+        dias = state["days"]
         try:
-            result = enrich_itinerary({
-                "plan": plan,
-                "flights": [],
-                "attractions": state.get("attractions", []),
-                "rag_data": state.get("rag_data", {}),
-            })
-            return {"itinerary": result.get("itinerary", {})}
+            from agents.itinerary_agent import ItineraryAgent
+            agent = ItineraryAgent()
+            result = agent.build_itinerary(
+                destination=destino,
+                days=dias,
+                planner_summary=state.get("planner_summary", ""),
+                attractions=state.get("attractions", []),
+                rag_data=state.get("rag_data", {}),
+            )
+            days_list = result.get("itinerary", [])
+            return {
+                "itinerary": {
+                    "summary": state.get("planner_summary", f"Plan de {dias} días en {destino}"),
+                    "days": days_list,
+                    "attractions": state.get("attractions", []),
+                }
+            }
         except Exception:
-            return {"itinerary": {"summary": plan["summary"], "days": [], "flights": [], "attractions": []}}
+            print("--- ItineraryAgent falló, generando días básicos ---")
+            days_list = [
+                {
+                    "title": f"Día {i+1} en {destino}",
+                    "description": f"Exploración del día {i+1} en {destino}",
+                    "suggested_activities": [],
+                }
+                for i in range(dias)
+            ]
+            return {
+                "itinerary": {
+                    "summary": f"Plan de {dias} días en {destino}",
+                    "days": days_list,
+                    "attractions": [],
+                }
+            }
 
     builder = StateGraph(TravelState)
     builder.add_node("rag", rag_node)
@@ -110,23 +132,21 @@ def ejecutar_viaje(destino: str, dias: int) -> dict:
         graph = _get_graph()
         estado_inicial = {"destination": destino, "days": dias}
         resultado_final = graph.invoke(estado_inicial)
+        itinerary = resultado_final.get("itinerary", {})
         return {
             "destino": destino,
             "dias": dias,
-            "mensaje_motivacional": resultado_final.get("planner_summary"),
+            "mensaje_motivacional": resultado_final.get("planner_summary") or f"Plan de {dias} días en {destino}.",
             "opciones_busqueda": resultado_final.get("attractions", []),
-            "itinerario": resultado_final.get("itinerary", {}),
+            "itinerario": itinerary,
         }
     except Exception:
+        import traceback; traceback.print_exc()
         return {
             "destino": destino,
             "dias": dias,
             "mensaje_motivacional": f"Plan de {dias} días en {destino}.",
-            "opciones_busqueda": [
-                f"Vuelo a {destino} desde €150",
-                f"Hotel en {destino} desde €60/noche",
-                f"Tour guiado por {destino} €40",
-            ],
+            "opciones_busqueda": [],
             "itinerario": {
                 "summary": f"Plan de {dias} días en {destino}",
                 "days": [

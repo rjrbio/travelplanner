@@ -19,8 +19,8 @@ class SearchAgent:
     def llm(self):
         if self._llm is None:
             self._llm = ChatOllama(
-                model="qwen3:1.7b", temperature=0.7, num_predict=1024,
-                base_url=OLLAMA_URL, client_kwargs={"timeout": 60},
+                model="qwen3:1.7b", temperature=0.7, num_predict=2048,
+                base_url=OLLAMA_URL, client_kwargs={"timeout": 300},
             )
         return self._llm
 

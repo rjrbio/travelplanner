@@ -25,6 +25,45 @@
     evening: 'Buenas noches',
   };
 
+  /* ─── Conversation Storage ─── */
+  const ConversationStorage = {
+    STORAGE_KEY: 'travelplanner_history',
+    MAX_SESSIONS: 10,
+    
+    saveConversation(sessionId, destination, messages) {
+      if (!sessionId || !messages.length) return;
+      
+      const conversations = this.loadConversations();
+      
+      const session = {
+        sessionId: sessionId,
+        destination: destination || 'Sin destino',
+        createdAt: Date.now(),
+        messages: messages.map(m => ({
+          role: m.role,
+          text: m.text,
+          time: m.time
+        }))
+      };
+      
+      conversations.unshift(session);
+      conversations.splice(this.MAX_SESSIONS);
+      
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(conversations));
+    },
+    
+    loadConversations() {
+      const data = localStorage.getItem(this.STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    },
+    
+    deleteConversation(sessionId) {
+      const conversations = this.loadConversations();
+      const filtered = conversations.filter(c => c.sessionId !== sessionId);
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(filtered));
+    }
+  };
+
   /* ─── DOM refs ─── */
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
@@ -85,6 +124,12 @@
     setupChips();
     setupRAG();
     startSession();
+    
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        ModalManager.closeAllModals();
+      }
+    });
   }
 
   /* ─── Greeting ─── */
@@ -117,12 +162,10 @@
 
   /* ─── Sidebar Nav ─── */
   function setupSidebarNav() {
-    $$('.sidebar__item[data-view]').forEach(function (item) {
+    $$('.sidebar__item[data-modal]').forEach(function (item) {
       item.addEventListener('click', function () {
-        const view = this.dataset.view;
-        $$('.sidebar__item').forEach(function (i) { i.classList.remove('sidebar__item--active'); });
-        this.classList.add('sidebar__item--active');
-        showView(view);
+        const modalId = this.dataset.modal;
+        ModalManager.openModal(modalId);
         closeSidebar();
       });
     });
@@ -134,11 +177,64 @@
   function toggleSidebar() { el.sidebar.classList.toggle('open'); el.overlay.classList.toggle('open'); }
   function closeSidebar() { el.sidebar.classList.remove('open'); el.overlay.classList.remove('open'); }
 
+  /* ─── Modal Manager ─── */
+  const ModalManager = {
+    openModal(modalId) {
+      const backdrop = document.getElementById(modalId);
+      if (!backdrop) return;
+      backdrop.removeAttribute('hidden');
+      backdrop.style.display = 'flex';
+      backdrop.style.opacity = '0';
+      
+      setTimeout(() => {
+        backdrop.style.transition = 'opacity 0.2s ease';
+        backdrop.style.opacity = '1';
+      }, 10);
+      
+      const closeBtn = backdrop.querySelector('.modal-close');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => this.closeModal(modalId), { once: true });
+      }
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) this.closeModal(modalId);
+      }, { once: true });
+      
+      const handleEsc = (e) => {
+        if (e.key === 'Escape') {
+          this.closeModal(modalId);
+          document.removeEventListener('keydown', handleEsc);
+        }
+      };
+      document.addEventListener('keydown', handleEsc);
+      
+      if (modalId === 'modal-history') renderHistory();
+      if (modalId === 'modal-rag') refreshRAG();
+    },
+    
+    closeModal(modalId) {
+      const backdrop = document.getElementById(modalId);
+      if (!backdrop) return;
+      const content = backdrop.querySelector('.modal-content');
+      if (content) {
+        content.classList.add('closing');
+        setTimeout(() => {
+          backdrop.setAttribute('hidden', '');
+          backdrop.style.display = 'none';
+          content.classList.remove('closing');
+        }, 200);
+      } else {
+        backdrop.setAttribute('hidden', '');
+        backdrop.style.display = 'none';
+      }
+    },
+    
+    closeAllModals() {
+      const modals = $$('.modal-backdrop:not([hidden])');
+      modals.forEach((m) => this.closeModal(m.id));
+    }
+  };
+
   function showView(view) {
-    el.chatView.hidden = view !== 'chat';
-    el.historyView.hidden = view !== 'history';
-    el.settingsView.hidden = view !== 'settings';
-    el.ragView.hidden = view !== 'rag';
     if (view === 'history') renderHistory();
     if (view === 'rag') refreshRAG();
   }
@@ -158,6 +254,14 @@
 
   /* ─── Reset ─── */
   async function resetSession() {
+    if (STATE.sessionId && STATE.history.length > 0) {
+      ConversationStorage.saveConversation(
+        STATE.sessionId,
+        el.currentDest.textContent || 'Sin destino',
+        STATE.history
+      );
+    }
+    
     if (STATE.sessionId) {
       try { await fetch('/session/' + STATE.sessionId + '/reset', { method: 'POST' }); } catch (e) { /* ignore */ }
     }
@@ -377,6 +481,16 @@
   /* ─── Buttons ─── */
   function setupButtons() {
     el.resetBtn.addEventListener('click', resetSession);
+    
+    window.addEventListener('beforeunload', function () {
+      if (STATE.sessionId && STATE.history.length > 0) {
+        ConversationStorage.saveConversation(
+          STATE.sessionId,
+          el.currentDest.textContent || 'Sin destino',
+          STATE.history
+        );
+      }
+    });
   }
 
   /* ─── Chips ─── */
@@ -395,28 +509,55 @@
   /* ─── History ─── */
   function renderHistory() {
     el.historyList.innerHTML = '';
-    if (STATE.history.length === 0) {
+    const conversations = ConversationStorage.loadConversations();
+    
+    if (!conversations.length) {
       el.historyList.innerHTML = '<div class="history__empty">' +
         '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">' +
         '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
-        '<p>A\u00fan no hay mensajes en esta sesi\u00f3n</p></div>';
+        '<p>A\u00fan no hay sesiones guardadas</p></div>';
       return;
     }
 
-    var firstUserMsg = STATE.history.find(function (m) { return m.role === 'user'; });
-    if (!firstUserMsg) return;
+    conversations.slice(0, 10).forEach(function (session) {
+      var div = document.createElement('div');
+      div.className = 'history__item';
+      div.style.cursor = 'pointer';
+      
+      var date = new Date(session.createdAt);
+      var timeStr = formatDate(date) + ' ' + date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      
+      div.innerHTML =
+        '<span class="history__item-icon">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+        '</span>' +
+        '<div class="history__item-info">' +
+        '<div class="history__item-title">' + esc(session.destination) + '</div>' +
+        '<div class="history__item-meta">' + timeStr + ' \u00B7 ' + session.messages.length + ' mensajes</div>' +
+        '</div>';
+      
+      div.addEventListener('click', function () {
+        loadConversationSession(session);
+        ModalManager.closeModal('modal-history');
+      });
+      
+      el.historyList.appendChild(div);
+    });
+  }
 
-    var div = document.createElement('div');
-    div.className = 'history__item';
-    div.innerHTML =
-      '<span class="history__item-icon">' +
-      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
-      '</span>' +
-      '<div class="history__item-info">' +
-      '<div class="history__item-title">' + firstUserMsg.text.slice(0, 60) + (firstUserMsg.text.length > 60 ? '...' : '') + '</div>' +
-      '<div class="history__item-meta">' + formatDate(new Date(firstUserMsg.time)) + ' &middot; ' + STATE.history.length + ' mensajes</div>' +
-      '</div>';
-    el.historyList.appendChild(div);
+  function loadConversationSession(session) {
+    el.messages.innerHTML = '';
+    STATE.history = [];
+    stopTyping();
+    
+    session.messages.forEach(function (msg) {
+      appendMessage(msg.role, msg.text);
+    });
+    
+    el.currentDest.textContent = session.destination;
+    STATE.sessionId = session.sessionId;
+    
+    el.messages.scrollTop = el.messages.scrollHeight;
   }
 
   /* ─── RAG Admin ─── */
