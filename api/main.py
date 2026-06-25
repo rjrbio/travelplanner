@@ -36,6 +36,10 @@ app.mount("/ui", StaticFiles(directory="ui"), name="ui")
 def root():
     return FileResponse("ui/index.html")
 
+@app.get("/travelimg.jpg")
+def travel_image():
+    return FileResponse("travelimg.jpg")
+
 # Rutas API
 app.include_router(chat_router, prefix="/chat")
 app.include_router(session_router, prefix="/session")

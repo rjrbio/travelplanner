@@ -113,7 +113,10 @@ body {
     gap:4px;
     border-bottom:1px solid var(--border);
 }
+.sidebar__brand { cursor:pointer; }
+.sidebar__brand:hover .sidebar__title { color:var(--primary); }
 .sidebar__logo { color:var(--primary); margin-bottom:4px; }
+.sidebar__logo img { border-radius:50%; object-fit:cover; display:block; }
 .sidebar__title { font-size:17px; font-weight:700; color:var(--text); letter-spacing:-0.3px; }
 .sidebar__sub { font-size:11px; color:var(--text-ter); text-transform:uppercase; letter-spacing:1.5px; }
 .sidebar__nav {
@@ -418,6 +421,14 @@ body {
 .history__item-info { flex:1; min-width:0; }
 .history__item-title { font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .history__item-meta { font-size:11px; color:var(--text-ter); }
+.history__item-delete {
+    flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:6px; border:none;
+    background:transparent; color:var(--text-ter); cursor:pointer;
+    transition:all 0.15s; opacity:0;
+}
+.history__item:hover .history__item-delete { opacity:1; }
+.history__item-delete:hover { background:rgba(239,68,68,0.12); color:#ef4444; }
 
 /* ─── Settings ─── */
 .settings { flex:1; padding:32px 24px; overflow-y:auto; max-width:480px; }

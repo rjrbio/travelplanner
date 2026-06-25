@@ -32,9 +32,9 @@
     
     saveConversation(sessionId, destination, messages) {
       if (!sessionId || !messages.length) return;
-      
-      const conversations = this.loadConversations();
-      
+
+      const existing = this.loadConversations().filter(c => c.sessionId !== sessionId);
+
       const session = {
         sessionId: sessionId,
         destination: destination || 'Sin destino',
@@ -45,11 +45,11 @@
           time: m.time
         }))
       };
-      
-      conversations.unshift(session);
-      conversations.splice(this.MAX_SESSIONS);
-      
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(conversations));
+
+      existing.unshift(session);
+      existing.splice(this.MAX_SESSIONS);
+
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(existing));
     },
     
     loadConversations() {
@@ -76,6 +76,8 @@
     typing: $('#typingIndicator'),
     typingText: $('#typingText'),
     resetBtn: $('#resetBtn'),
+    homeBtn: $('#homeBtn'),
+    homeBrand: $('#homeBrand'),
     menuToggle: $('#menuToggle'),
     sidebar: $('#sidebar'),
     overlay: $('#overlay'),
@@ -479,8 +481,25 @@
   }
 
   /* ─── Buttons ─── */
+  async function goHome() {
+    if (STATE.sessionId && STATE.history.length > 0) {
+      ConversationStorage.saveConversation(
+        STATE.sessionId,
+        el.currentDest.textContent || 'Sin destino',
+        STATE.history
+      );
+    }
+    if (STATE.sessionId) {
+      try { await fetch('/session/' + STATE.sessionId + '/reset', { method: 'POST' }); } catch (e) {}
+    }
+    window.location.reload();
+  }
+
   function setupButtons() {
     el.resetBtn.addEventListener('click', resetSession);
+    el.homeBtn.addEventListener('click', goHome);
+    el.homeBrand.addEventListener('click', function () { goHome(); closeSidebar(); });
+    el.homeBrand.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { goHome(); closeSidebar(); } });
     
     window.addEventListener('beforeunload', function () {
       if (STATE.sessionId && STATE.history.length > 0) {
@@ -523,10 +542,19 @@
       var div = document.createElement('div');
       div.className = 'history__item';
       div.style.cursor = 'pointer';
-      
+
       var date = new Date(session.createdAt);
       var timeStr = formatDate(date) + ' ' + date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-      
+
+      var deleteBtn = document.createElement('button');
+      deleteBtn.className = 'history__item-delete';
+      deleteBtn.title = 'Eliminar conversaci\u00F3n';
+      deleteBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
+      deleteBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        deleteSession(session.sessionId);
+      });
+
       div.innerHTML =
         '<span class="history__item-icon">' +
         '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
@@ -535,14 +563,30 @@
         '<div class="history__item-title">' + esc(session.destination) + '</div>' +
         '<div class="history__item-meta">' + timeStr + ' \u00B7 ' + session.messages.length + ' mensajes</div>' +
         '</div>';
-      
+
+      div.appendChild(deleteBtn);
+
       div.addEventListener('click', function () {
         loadConversationSession(session);
         ModalManager.closeModal('modal-history');
       });
-      
+
       el.historyList.appendChild(div);
     });
+  }
+
+  async function deleteSession(sessionId) {
+    try {
+      await fetch('/session/' + sessionId, { method: 'DELETE' });
+    } catch (e) { /* si la sesión ya no existe en el servidor, ignorar */ }
+    ConversationStorage.deleteConversation(sessionId);
+    // Evitar que beforeunload vuelva a guardar esta sesión si es la activa
+    if (STATE.sessionId === sessionId) {
+      STATE.history = [];
+      STATE.sessionId = null;
+    }
+    renderHistory();
+    showToast('Conversación eliminada');
   }
 
   function loadConversationSession(session) {
