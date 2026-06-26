@@ -168,11 +168,11 @@ def _build_attractions_text(attractions: list) -> str:
     return "\n".join(lines) if lines else "Usa tu conocimiento del destino."
 
 
-def _make_llm(num_predict: int, temperature: float = 0.65, timeout: int = 120) -> ChatOllama:
+def _make_llm(temperature: float = 0.65, timeout: int = 120) -> ChatOllama:
     return ChatOllama(
         model=OLLAMA_MODEL,
         temperature=temperature,
-        num_predict=num_predict,
+        num_predict=-1,
         base_url=OLLAMA_URL,
         client_kwargs={"timeout": timeout},
     )
@@ -181,10 +181,10 @@ def _make_llm(num_predict: int, temperature: float = 0.65, timeout: int = 120) -
 # ─── Generadores SSE ──────────────────────────────────────────────────────────
 
 async def _stream_trip(session_id: str, destino: str, dias: int, history: list):
-    """Genera el itinerario en streaming: RAG+Attractions en paralelo, una sola LLM."""
+    """Streaming real: curiosidades visibles durante el thinking, tokens reales después."""
     loop = asyncio.get_running_loop()
 
-    # Fase 1: RAG + Attractions en paralelo (~1-2 s)
+    # Fase 1: RAG + Attractions en paralelo
     try:
         rag_data, attractions = await asyncio.gather(
             loop.run_in_executor(_executor, _run_rag, destino),
@@ -197,19 +197,19 @@ async def _stream_trip(session_id: str, destino: str, dias: int, history: list):
     rag_context = _build_rag_context(rag_data)
     attractions_text = _build_attractions_text(attractions)
     history_section = format_history(history, max_turns=2)
-    max_words = 50 + dias * 60
+    max_words = 60 + dias * 80
 
     with open("prompts/unified_itinerary.txt", "r", encoding="utf-8") as f:
         prompt_text = f.read()
 
-    token_budget = min(1000, 100 + dias * 130)
-    llm = _make_llm(token_budget)
+    llm = _make_llm(timeout=180)
     chain = ChatPromptTemplate.from_template(prompt_text) | llm
 
-    # Emitir cabecera inmediatamente
+    # Fase 2: Streaming real — el header se retrasa hasta el primer token visible
+    # Durante el thinking, ThinkingStreamFilter suprime los tokens y las curiosidades siguen activas
     header = f"## {destino} — {dias} {'día' if dias == 1 else 'días'}\n\n"
     full_text = header
-    yield f"data: {json.dumps({'token': header})}\n\n"
+    header_sent = False
 
     tf = ThinkingStreamFilter()
     try:
@@ -223,17 +223,25 @@ async def _stream_trip(session_id: str, destino: str, dias: int, history: list):
         }):
             text = tf.feed(chunk.content)
             if text:
+                if not header_sent:
+                    header_sent = True
+                    yield f"data: {json.dumps({'token': header})}\n\n"
                 full_text += text
                 yield f"data: {json.dumps({'token': text})}\n\n"
 
         remaining = tf.flush()
         if remaining:
+            if not header_sent:
+                header_sent = True
+                yield f"data: {json.dumps({'token': header})}\n\n"
             full_text += remaining
             yield f"data: {json.dumps({'token': remaining})}\n\n"
 
     except Exception:
         logger.exception("Error en stream LLM para '%s'", destino)
         err = "\n\nError al generar el itinerario. Por favor, inténtalo de nuevo."
+        if not header_sent:
+            yield f"data: {json.dumps({'token': header})}\n\n"
         full_text += err
         yield f"data: {json.dumps({'token': err})}\n\n"
 
@@ -254,7 +262,7 @@ async def _stream_conversational(session_id: str, user_message: str, history: li
         return
 
     history_text = format_history(history, max_turns=3)
-    llm = _make_llm(num_predict=200, temperature=0.7, timeout=60)
+    llm = _make_llm(temperature=0.7, timeout=90)
     chain = ChatPromptTemplate.from_template(prompt_text) | llm
 
     full_text = ""
