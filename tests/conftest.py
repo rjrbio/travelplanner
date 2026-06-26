@@ -1,10 +1,11 @@
 import pytest
+from config import OLLAMA_URL, OLLAMA_MODEL
 
 
 def ollama_disponible() -> bool:
     try:
         import requests
-        r = requests.get("http://localhost:11434/api/tags", timeout=2)
+        r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=2)
         return r.status_code == 200
     except Exception:
         return False
@@ -16,8 +17,8 @@ def modelo_disponible() -> bool:
     try:
         import requests
         r = requests.post(
-            "http://localhost:11434/api/show",
-            json={"name": "qwen3:1.7b"},
+            f"{OLLAMA_URL}/api/show",
+            json={"name": OLLAMA_MODEL},
             timeout=2,
         )
         return r.status_code == 200
@@ -27,5 +28,5 @@ def modelo_disponible() -> bool:
 
 pytestmark_agentes = pytest.mark.skipif(
     not modelo_disponible(),
-    reason="Requiere Ollama con modelo qwen3:1.7b (ollama pull qwen3:1.7b)",
+    reason=f"Requiere Ollama con modelo {OLLAMA_MODEL} (ollama pull {OLLAMA_MODEL})",
 )

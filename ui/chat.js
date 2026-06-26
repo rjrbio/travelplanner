@@ -8,6 +8,9 @@
     isWaiting: false,
     typingTimer: null,
     typingIndex: 0,
+    factTimer: null,
+    factShowTimer: null,
+    factIndex: 0,
   };
 
   const TYPING_MESSAGES = [
@@ -17,6 +20,29 @@
     'Planificando itinerario',
     'Organizando actividades',
     'Casi listo',
+  ];
+
+  const SPAIN_FACTS = [
+    '¿Sabías que el español es el segundo idioma más hablado del mundo, con más de 500 millones de hablantes nativos?',
+    '¿Sabías que Cuenca tiene rascacielos medievales colgados sobre el borde de un barranco?',
+    '¿Sabías que el desierto de Tabernas en Almería es el único desierto real de Europa?',
+    '¿Sabías que España tiene más bares por habitante que ningún otro país de la Unión Europea?',
+    '¿Sabías que La Sagrada Família lleva más de 140 años en construcción y aún no ha terminado?',
+    '¿Sabías que el flamenco es Patrimonio Cultural Inmaterial de la Humanidad desde 2010?',
+    '¿Sabías que España tiene la red de Alta Velocidad ferroviaria más extensa de Europa?',
+    '¿Sabías que la paella nació en Valencia y la original lleva conejo y pollo, no marisco?',
+    '¿Sabías que el Camino de Santiago tiene más de 1.200 años de historia y cruza toda Europa?',
+    '¿Sabías que Toledo fue capital de España antes que Madrid, durante la época visigoda?',
+    '¿Sabías que España es el tercer país más visitado del mundo, con casi 90 millones de turistas al año?',
+    '¿Sabías que el País Vasco tiene más estrellas Michelin por habitante que ningún otro lugar del planeta?',
+    '¿Sabías que el acueducto de Segovia lleva en pie más de 2.000 años sin usar argamasa?',
+    '¿Sabías que Sevilla es la ciudad más calurosa de la Europa continental, con picos de 47\xBAC?',
+    '¿Sabías que las cuevas de Altamira tienen pinturas rupestres de hace más de 36.000 años?',
+    '¿Sabías que la Alhambra de Granada es el monumento más visitado de España con más de 2 millones de visitas?',
+    '¿Sabías que en la Tomatina de Buñol se lanzan cada agosto más de 150.000 kg de tomates?',
+    '¿Sabías que el Museo del Prado es uno de los 10 museos de arte más importantes del mundo?',
+    '¿Sabías que Granada fue el último reino moro en caer en 1492, el mismo año que Colón llegó a América?',
+    '¿Sabías que España tiene más de 50 sitios declarados Patrimonio Mundial por la UNESCO?',
   ];
 
   const GREETINGS = {
@@ -319,14 +345,15 @@
 
       if (!res.ok) throw new Error('HTTP ' + res.status);
 
-      const data = await res.json();
-      stopTyping();
-
-      if (!data.response) {
-        appendMessage('bot', 'El servidor no devolvi\u00f3 una respuesta v\u00e1lida.');
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/event-stream')) {
+        await consumeStream(res, text);
       } else {
-        appendMessage('bot', data.response);
-        updateDestFromResponse(text, data.response);
+        const data = await res.json();
+        stopTyping();
+        const reply = data.response || 'El servidor no devolvi\u00f3 una respuesta v\u00e1lida.';
+        appendMessage('bot', reply);
+        updateDestFromResponse(text, reply);
       }
     } catch (err) {
       stopTyping();
@@ -336,6 +363,74 @@
     STATE.isWaiting = false;
     el.sendBtn.disabled = false;
     el.input.focus();
+  }
+
+  /* \u2500\u2500\u2500 Stream consumer \u2500\u2500\u2500 */
+  async function consumeStream(res, userText) {
+    var reader = res.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+    var fullText = '';
+    var msgDiv = null;
+    var firstToken = true;
+
+    try {
+      while (true) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+
+        buffer += decoder.decode(chunk.value, { stream: true });
+        var lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          if (!line.startsWith('data: ')) continue;
+          var raw = line.slice(6).trim();
+          if (raw === '[DONE]') continue;
+
+          var token;
+          try { token = JSON.parse(raw).token; } catch (e) { continue; }
+          if (!token) continue;
+
+          if (firstToken) {
+            stopTyping();
+            firstToken = false;
+            msgDiv = createBotMessageDiv();
+          }
+
+          fullText += token;
+          if (msgDiv) {
+            msgDiv.innerHTML = renderMarkdown(fullText);
+            el.messages.scrollTop = el.messages.scrollHeight;
+          }
+        }
+      }
+    } catch (e) { /* network error mid-stream */ }
+
+    if (firstToken) stopTyping();
+
+    if (msgDiv) {
+      msgDiv.innerHTML = renderMarkdown(fullText);
+      var timeEl = document.createElement('span');
+      timeEl.className = 'msg__time';
+      timeEl.textContent = formatTime(new Date());
+      msgDiv.appendChild(timeEl);
+      el.messages.scrollTop = el.messages.scrollHeight;
+    }
+
+    if (fullText) {
+      STATE.history.push({ role: 'bot', text: fullText, time: Date.now() });
+      updateDestFromResponse(userText, fullText);
+    }
+  }
+
+  function createBotMessageDiv() {
+    var div = document.createElement('div');
+    div.className = 'msg msg--bot';
+    el.messages.appendChild(div);
+    el.messages.scrollTop = el.messages.scrollHeight;
+    return div;
   }
 
   /* ─── Extract dest from text ─── */
@@ -432,20 +527,52 @@
   /* ─── Typing ─── */
   function startTyping() {
     STATE.typingIndex = 0;
+    STATE.factIndex = Math.floor(Math.random() * SPAIN_FACTS.length);
     el.typing.classList.add('active');
     el.typingText.textContent = TYPING_MESSAGES[0] + '...';
+
     STATE.typingTimer = setInterval(function () {
       STATE.typingIndex = (STATE.typingIndex + 1) % TYPING_MESSAGES.length;
       el.typingText.textContent = TYPING_MESSAGES[STATE.typingIndex] + '...';
     }, 2500);
+
+    STATE.factShowTimer = setTimeout(function () {
+      showFact();
+      STATE.factTimer = setInterval(showFact, 9000);
+    }, 2200);
+  }
+
+  function showFact() {
+    var factCard = document.getElementById('typingFact');
+    var factText = document.getElementById('typingFactText');
+    if (!factCard || !factText) return;
+
+    STATE.factIndex = (STATE.factIndex + 1) % SPAIN_FACTS.length;
+
+    if (factCard.hasAttribute('hidden')) {
+      factText.textContent = SPAIN_FACTS[STATE.factIndex];
+      factCard.removeAttribute('hidden');
+    } else {
+      factCard.style.opacity = '0';
+      factCard.style.transform = 'translateY(8px)';
+      setTimeout(function () {
+        factText.textContent = SPAIN_FACTS[STATE.factIndex];
+        factCard.style.opacity = '1';
+        factCard.style.transform = 'translateY(0)';
+      }, 460);
+    }
   }
 
   function stopTyping() {
     el.typing.classList.remove('active');
-    if (STATE.typingTimer) {
-      clearInterval(STATE.typingTimer);
-      STATE.typingTimer = null;
-    }
+    clearInterval(STATE.typingTimer);
+    STATE.typingTimer = null;
+    clearTimeout(STATE.factShowTimer);
+    STATE.factShowTimer = null;
+    clearInterval(STATE.factTimer);
+    STATE.factTimer = null;
+    var factCard = document.getElementById('typingFact');
+    if (factCard) factCard.setAttribute('hidden', '');
   }
 
   /* ─── Welcome ─── */

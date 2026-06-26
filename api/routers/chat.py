@@ -1,19 +1,30 @@
-﻿import logging
+import asyncio
+import json
+import logging
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 
 from api.chat_schema import ChatRequest
 from api.deps.session_manager import SessionManager
-from agents.utils import strip_thinking, format_history
+from agents.utils import format_history, ThinkingStreamFilter
+from config import OLLAMA_URL, OLLAMA_MODEL
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-OLLAMA_URL = os.getenv("OLLAMA_API_BASE_URL", "http://localhost:11434")
+_executor = ThreadPoolExecutor(max_workers=4)
+
+_SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "X-Accel-Buffering": "no",
+    "Connection": "keep-alive",
+}
 
 
 # ─── Helpers de extracción ────────────────────────────────────────────────────
@@ -62,7 +73,6 @@ def _extract_days(message: str) -> int:
 
 
 def _is_trip_request(message: str) -> bool:
-    """Determina si el mensaje es una solicitud de planificación de viaje."""
     trip_keywords = [
         r"viajar\s+a", r"ir\s+a", r"visitar\s+", r"viaje\s+a",
         r"\d+\s*d[ií]as?", r"semanas?\s+en", r"planif",
@@ -73,7 +83,6 @@ def _is_trip_request(message: str) -> bool:
 
 
 _DESTINOS_FUERA_ESPANA = {
-    # Ciudades internacionales frecuentes
     "paris", "parís", "roma", "rome", "london", "londres",
     "tokio", "tokyo", "nueva york", "new york", "berlin", "berlín",
     "amsterdam", "dubai", "bangkok", "sydney", "buenos aires",
@@ -92,7 +101,6 @@ _DESTINOS_FUERA_ESPANA = {
     "bogota", "bogotá", "lima", "santiago", "caracas",
     "nueva delhi", "new delhi", "mumbai", "bombay",
     "kuala lumpur", "jakarta", "manila", "seul", "seúl", "seoul",
-    # Países completos cuando se mencionan como destino
     "japon", "japón", "china", "india", "brasil", "brazil",
     "argentina", "colombia", "chile", "peru", "perú",
     "marruecos", "morocco", "egipto", "egypt",
@@ -108,107 +116,194 @@ _DESTINOS_FUERA_ESPANA = {
 
 
 def _es_destino_espanol(destination: str) -> bool:
-    """Devuelve False si el destino está claramente fuera de España."""
     return destination.lower().strip() not in _DESTINOS_FUERA_ESPANA
 
 
-# ─── Respuesta conversacional (sin destino claro) ────────────────────────────
+# ─── Funciones de contexto (síncronas, corren en thread pool) ────────────────
 
-def _conversational_response(user_message: str, history: list) -> str:
+def _run_rag(destino: str) -> dict:
     try:
-        llm = ChatOllama(
-            model="qwen3:1.7b",
-            temperature=0.7,
-            num_predict=512,
-            base_url=OLLAMA_URL,
-            client_kwargs={"timeout": 60},
+        from agents.rag_agent import RAGAgent
+        result = RAGAgent().run({"destination_city": destino})
+        return result.get("rag_data", {})
+    except Exception:
+        logger.warning("RAG no disponible para '%s'", destino)
+        return {}
+
+
+def _run_attractions(destino: str) -> list:
+    try:
+        from graph.nodes import fetch_attractions_node
+        result = fetch_attractions_node({
+            "destination_city": destino,
+            "attractions_limit": 9,
+        })
+        return result.get("attractions", [])
+    except Exception:
+        logger.warning("Atracciones no disponibles para '%s'", destino)
+        return []
+
+
+def _build_rag_context(rag_data: dict) -> str:
+    parts = []
+    if rag_data.get("weather"):
+        parts.append(f"Clima: {rag_data['weather'][:150]}")
+    if rag_data.get("transport"):
+        parts.append(f"Transporte: {rag_data['transport'][:150]}")
+    if rag_data.get("tips"):
+        parts.append(f"Consejos: {'; '.join(rag_data['tips'][:2])}")
+    if rag_data.get("neighborhoods"):
+        parts.append(f"Barrios: {'; '.join(rag_data['neighborhoods'][:2])}")
+    return "\n".join(parts) if parts else "Usa tu conocimiento general del destino."
+
+
+def _build_attractions_text(attractions: list) -> str:
+    if not attractions:
+        return "Sin atracciones específicas — usa tu conocimiento del destino."
+    lines = [
+        f"- {a.get('name', a.get('nombre', str(a)))}"
+        for a in attractions[:6]
+        if isinstance(a, dict) and (a.get("name") or a.get("nombre"))
+    ]
+    return "\n".join(lines) if lines else "Usa tu conocimiento del destino."
+
+
+def _make_llm(num_predict: int, temperature: float = 0.65, timeout: int = 120) -> ChatOllama:
+    return ChatOllama(
+        model=OLLAMA_MODEL,
+        temperature=temperature,
+        num_predict=num_predict,
+        base_url=OLLAMA_URL,
+        client_kwargs={"timeout": timeout},
+    )
+
+
+# ─── Generadores SSE ──────────────────────────────────────────────────────────
+
+async def _stream_trip(session_id: str, destino: str, dias: int, history: list):
+    """Genera el itinerario en streaming: RAG+Attractions en paralelo, una sola LLM."""
+    loop = asyncio.get_running_loop()
+
+    # Fase 1: RAG + Attractions en paralelo (~1-2 s)
+    try:
+        rag_data, attractions = await asyncio.gather(
+            loop.run_in_executor(_executor, _run_rag, destino),
+            loop.run_in_executor(_executor, _run_attractions, destino),
         )
+    except Exception:
+        logger.warning("Error obteniendo contexto para '%s'", destino)
+        rag_data, attractions = {}, []
+
+    rag_context = _build_rag_context(rag_data)
+    attractions_text = _build_attractions_text(attractions)
+    history_section = format_history(history, max_turns=2)
+    max_words = 50 + dias * 60
+
+    with open("prompts/unified_itinerary.txt", "r", encoding="utf-8") as f:
+        prompt_text = f.read()
+
+    token_budget = min(1000, 100 + dias * 130)
+    llm = _make_llm(token_budget)
+    chain = ChatPromptTemplate.from_template(prompt_text) | llm
+
+    # Emitir cabecera inmediatamente
+    header = f"## {destino} — {dias} {'día' if dias == 1 else 'días'}\n\n"
+    full_text = header
+    yield f"data: {json.dumps({'token': header})}\n\n"
+
+    tf = ThinkingStreamFilter()
+    try:
+        async for chunk in chain.astream({
+            "destination": destino,
+            "days": dias,
+            "rag_context": rag_context,
+            "attractions_text": attractions_text,
+            "history_section": history_section,
+            "max_words": max_words,
+        }):
+            text = tf.feed(chunk.content)
+            if text:
+                full_text += text
+                yield f"data: {json.dumps({'token': text})}\n\n"
+
+        remaining = tf.flush()
+        if remaining:
+            full_text += remaining
+            yield f"data: {json.dumps({'token': remaining})}\n\n"
+
+    except Exception:
+        logger.exception("Error en stream LLM para '%s'", destino)
+        err = "\n\nError al generar el itinerario. Por favor, inténtalo de nuevo."
+        full_text += err
+        yield f"data: {json.dumps({'token': err})}\n\n"
+
+    yield "data: [DONE]\n\n"
+    SessionManager.append_message(session_id, "bot", full_text)
+
+
+async def _stream_conversational(session_id: str, user_message: str, history: list):
+    """Respuesta conversacional de Marco en streaming."""
+    try:
         with open("prompts/conversational.txt", "r", encoding="utf-8") as f:
             prompt_text = f.read()
-
-        history_text = format_history(history, max_turns=3)
-        history_section = history_text if history_text else ""
-
-        prompt = ChatPromptTemplate.from_template(prompt_text)
-        chain = prompt | llm
-        response = chain.invoke({
-            "user_message": user_message,
-            "history_section": history_section,
-        })
-        return strip_thinking(response.content)
     except Exception:
-        logger.exception("Error en respuesta conversacional")
-        return (
-            "¡Hola! Soy Marco, tu consultor de viajes. "
-            "Cuéntame a dónde quieres ir y cuántos días tienes, "
-            "y te preparo un itinerario personalizado."
-        )
+        fallback = "¡Hola! Soy Marco, tu consultor de viajes por España. ¿A qué destino quieres ir?"
+        yield f"data: {json.dumps({'token': fallback})}\n\n"
+        yield "data: [DONE]\n\n"
+        SessionManager.append_message(session_id, "bot", fallback)
+        return
+
+    history_text = format_history(history, max_turns=3)
+    llm = _make_llm(num_predict=200, temperature=0.7, timeout=60)
+    chain = ChatPromptTemplate.from_template(prompt_text) | llm
+
+    full_text = ""
+    tf = ThinkingStreamFilter()
+    try:
+        async for chunk in chain.astream({
+            "user_message": user_message,
+            "history_section": history_text,
+        }):
+            text = tf.feed(chunk.content)
+            if text:
+                full_text += text
+                yield f"data: {json.dumps({'token': text})}\n\n"
+
+        remaining = tf.flush()
+        if remaining:
+            full_text += remaining
+            yield f"data: {json.dumps({'token': remaining})}\n\n"
+
+    except Exception:
+        logger.exception("Error en stream conversacional")
+        fallback = "¡Hola! Soy Marco. ¿A qué destino español te gustaría viajar?"
+        full_text = fallback
+        yield f"data: {json.dumps({'token': fallback})}\n\n"
+
+    yield "data: [DONE]\n\n"
+    SessionManager.append_message(session_id, "bot", full_text)
 
 
-# ─── Formateadores de respuesta ───────────────────────────────────────────────
-
-def _format_attractions(atracciones: list) -> str:
-    if not atracciones:
-        return ""
-    lines = ["\n### Atracciones destacadas\n"]
-    for a in atracciones[:5]:
-        if isinstance(a, dict):
-            name = a.get("name", a.get("nombre", ""))
-            desc = a.get("description", a.get("descripcion", ""))
-            precio = a.get("price", a.get("precio", ""))
-            rating = a.get("rating", "")
-            if not name:
-                continue
-            line = f"- **{name}**"
-            if desc:
-                line += f" — {desc[:100]}"
-            extras = " · ".join(filter(None, [
-                f"€{precio}" if precio else "",
-                f"⭐ {rating}" if rating else "",
-            ]))
-            if extras:
-                line += f" ({extras})"
-            lines.append(line)
-        else:
-            lines.append(f"- {a}")
-    return "\n".join(lines) if len(lines) > 1 else ""
+async def _stream_rejection(session_id: str, destino: str):
+    msg = (
+        f"Lo siento, solo puedo ayudarte a planificar viajes por **España**. "
+        f"{destino} queda fuera de mi área de especialización. "
+        f"¿Te animas a descubrir algún destino español? Puedo prepararte un itinerario "
+        f"para Madrid, Barcelona, Sevilla, Granada, Valencia, San Sebastián y muchos más."
+    )
+    yield f"data: {json.dumps({'token': msg})}\n\n"
+    yield "data: [DONE]\n\n"
+    SessionManager.append_message(session_id, "bot", msg)
 
 
-def _format_itinerario(itinerario: dict, destino: str, dias: int) -> str:
-    if not itinerario or not itinerario.get("days"):
-        return ""
-
-    lines = ["\n### Itinerario día a día\n"]
-    for i, dia in enumerate(itinerario["days"], 1):
-        if not isinstance(dia, dict):
-            lines.append(f"- Día {i}: {dia}")
-            continue
-
-        titulo = dia.get("title", f"Día {i} en {destino}")
-        desc = dia.get("description", "")
-        acts = dia.get("suggested_activities", [])
-
-        lines.append(f"#### Día {i}: {titulo}")
-        if desc:
-            lines.append(desc)
-        if acts:
-            for act in acts[:3]:
-                name = act.get("name", act) if isinstance(act, dict) else act
-                lines.append(f"- {name}")
-        lines.append("")
-
-    return "\n".join(lines)
-
-
-# ─── Endpoint principal ───────────────────────────────────────────────────────
+# ─── Endpoint ─────────────────────────────────────────────────────────────────
 
 @router.post("/{session_id}")
-def chat(session_id: str, request: ChatRequest):
+async def chat(session_id: str, request: ChatRequest):
     if not SessionManager.session_exists(session_id):
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
 
     SessionManager.append_message(session_id, "user", request.message)
-
     history = SessionManager.get_history(session_id)
 
     destino = _extract_destination(request.message)
@@ -216,32 +311,10 @@ def chat(session_id: str, request: ChatRequest):
     is_trip = _is_trip_request(request.message)
 
     if destino and is_trip and not _es_destino_espanol(destino):
-        bot_response = (
-            f"Lo siento, solo puedo ayudarte a planificar viajes por **España**. "
-            f"{destino} queda fuera de mi área de especialización. "
-            f"¿Te animas a descubrir algún destino español? "
-            f"Puedo prepararte un itinerario para Madrid, Barcelona, Sevilla, Granada, Valencia, "
-            f"San Sebastián, Bilbao, Málaga, Toledo, Salamanca y muchos más rincones increíbles de España."
-        )
+        generator = _stream_rejection(session_id, destino)
     elif destino and is_trip:
-        try:
-            from graph.graph import ejecutar_viaje
-            resultado = ejecutar_viaje(destino, dias, conversation_history=history[:-1])
-
-            plan = resultado.get("mensaje_motivacional", "")
-            atracciones = resultado.get("opciones_busqueda", [])
-            itinerario = resultado.get("itinerario", {})
-
-            bot_response = f"## {destino} — {dias} {'día' if dias == 1 else 'días'}\n\n"
-            if plan:
-                bot_response += f"{plan}\n"
-            bot_response += _format_attractions(atracciones)
-            bot_response += _format_itinerario(itinerario, destino, dias)
-        except Exception:
-            logger.exception("Graph failed for session %s dest=%s", session_id, destino)
-            bot_response = _conversational_response(request.message, history[:-1])
+        generator = _stream_trip(session_id, destino, dias, history[:-1])
     else:
-        bot_response = _conversational_response(request.message, history[:-1])
+        generator = _stream_conversational(session_id, request.message, history[:-1])
 
-    SessionManager.append_message(session_id, "bot", bot_response)
-    return {"response": bot_response}
+    return StreamingResponse(generator, media_type="text/event-stream", headers=_SSE_HEADERS)

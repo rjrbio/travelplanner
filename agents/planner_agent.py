@@ -5,8 +5,8 @@ from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 
 from agents.utils import strip_thinking, format_history
+from config import OLLAMA_URL, OLLAMA_MODEL
 
-OLLAMA_URL = os.getenv("OLLAMA_API_BASE_URL", "http://localhost:11434")
 logger = logging.getLogger(__name__)
 
 
@@ -19,7 +19,7 @@ class PlannerAgent:
     def llm(self):
         if self._llm is None:
             self._llm = ChatOllama(
-                model="qwen3:1.7b",
+                model=OLLAMA_MODEL,
                 temperature=0.7,
                 num_predict=2048,
                 base_url=OLLAMA_URL,
