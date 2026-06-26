@@ -205,45 +205,30 @@ async def _stream_trip(session_id: str, destino: str, dias: int, history: list):
     llm = _make_llm(timeout=180)
     chain = ChatPromptTemplate.from_template(prompt_text) | llm
 
-    # Fase 2: Streaming real — el header se retrasa hasta el primer token visible
-    # Durante el thinking, ThinkingStreamFilter suprime los tokens y las curiosidades siguen activas
-    header = f"## {destino} — {dias} {'día' if dias == 1 else 'días'}\n\n"
-    full_text = header
-    header_sent = False
-
-    tf = ThinkingStreamFilter()
+    # Fase 2: Generar respuesta completa — las curiosidades permanecen visibles mientras el modelo trabaja
     try:
-        async for chunk in chain.astream({
+        response = await chain.ainvoke({
             "destination": destino,
             "days": dias,
             "rag_context": rag_context,
             "attractions_text": attractions_text,
             "history_section": history_section,
             "max_words": max_words,
-        }):
-            text = tf.feed(chunk.content)
-            if text:
-                if not header_sent:
-                    header_sent = True
-                    yield f"data: {json.dumps({'token': header})}\n\n"
-                full_text += text
-                yield f"data: {json.dumps({'token': text})}\n\n"
-
-        remaining = tf.flush()
-        if remaining:
-            if not header_sent:
-                header_sent = True
-                yield f"data: {json.dumps({'token': header})}\n\n"
-            full_text += remaining
-            yield f"data: {json.dumps({'token': remaining})}\n\n"
-
+        })
+        from agents.utils import strip_thinking
+        body = strip_thinking(response.content).strip()
     except Exception:
-        logger.exception("Error en stream LLM para '%s'", destino)
-        err = "\n\nError al generar el itinerario. Por favor, inténtalo de nuevo."
-        if not header_sent:
-            yield f"data: {json.dumps({'token': header})}\n\n"
-        full_text += err
-        yield f"data: {json.dumps({'token': err})}\n\n"
+        logger.exception("Error generando itinerario para '%s'", destino)
+        body = "No se pudo generar el itinerario. Por favor, inténtalo de nuevo."
+
+    # Fase 3: Streaming palabra a palabra (~20 palabras/s) para dar sensación natural
+    header = f"## {destino} — {dias} {'día' if dias == 1 else 'días'}\n\n"
+    full_text = header + body
+
+    yield f"data: {json.dumps({'token': header})}\n\n"
+    for word in body.split(" "):
+        yield f"data: {json.dumps({'token': word + ' '})}\n\n"
+        await asyncio.sleep(0.05)
 
     yield "data: [DONE]\n\n"
     SessionManager.append_message(session_id, "bot", full_text)
