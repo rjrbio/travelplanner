@@ -197,7 +197,7 @@ async def _stream_trip(session_id: str, destino: str, dias: int, history: list):
     rag_context = _build_rag_context(rag_data)
     attractions_text = _build_attractions_text(attractions)
     history_section = format_history(history, max_turns=2)
-    max_words = 60 + dias * 80
+    max_words = 200 + dias * 180
 
     with open("prompts/unified_itinerary.txt", "r", encoding="utf-8") as f:
         prompt_text = f.read()

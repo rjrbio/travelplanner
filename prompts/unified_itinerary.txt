@@ -9,24 +9,54 @@ Atracciones disponibles en {destination}:
 
 {history_section}
 
-Crea el itinerario de {days} días para {destination} EN ESPAÑOL, con este formato EXACTO:
+Genera un itinerario COMPLETO de {days} días para {destination}. El viajero debe tener TODO lo que necesita en esta única respuesta, sin tener que preguntar nada más.
 
-[Frase introductoria en español sobre {destination} que capture su esencia. Máximo 25 palabras.]
+Usa este formato EXACTO:
 
-DÍA 1: [Título evocador en español]
-Resumen: [actividad concreta 1] | [actividad concreta 2] | [actividad concreta 3]
-[Descripción detallada de la jornada en 2-3 frases: qué hacer por la mañana, tarde y noche. Nombres reales de lugares, barrios y restaurantes de {destination}.]
+[Frase que capture la esencia de {destination}. Máximo 20 palabras.]
 
-DÍA 2: [Título en español]
-Resumen: [actividad 1] | [actividad 2] | [actividad 3]
-[Descripción detallada...]
+---
 
-[Repite el mismo formato para cada día restante]
+### DÍA 1 — [Título evocador]
+**Mañana:** [Actividad concreta: nombre real del lugar, qué ver/hacer y por qué merece la pena.]
+**Tarde:** [Actividad diferente: otro barrio, museo, mercado o ruta con nombre real.]
+**Noche:** [Restaurante o zona con nombre real donde cenar; menciona qué pedir.]
+*Coste estimado: alojamiento ~XX€ · comidas ~XX€ · actividades ~XX€ · transporte ~XX€ → **~XX€ este día***
 
-Reglas:
-- TODO el texto en ESPAÑOL, sin excepción
-- Empieza directamente con la frase introductoria, sin saludos
-- Usa lugares, barrios y restaurantes reales y concretos de {destination}
+---
+
+### DÍA 2 — [Título]
+**Mañana:** ...
+**Tarde:** ...
+**Noche:** ...
+*Coste estimado: alojamiento ~XX€ · comidas ~XX€ · actividades ~XX€ · transporte ~XX€ → **~XX€ este día***
+
+---
+
+[Repite el mismo bloque para cada día restante]
+
+---
+
+### Presupuesto total
+
+| Concepto | Por día | {days} días |
+|---|---|---|
+| Alojamiento | ~XX€ | ~XX€ |
+| Comidas | ~XX€ | ~XX€ |
+| Actividades | ~XX€ | ~XX€ |
+| Transporte local | ~XX€ | ~XX€ |
+| **Total** | **~XX€** | **~XX€** |
+
+### Consejos prácticos
+- **Transporte:** [cómo moverse por {destination}: metro, autobús, a pie…]
+- **Reservas:** [qué conviene reservar con antelación y dónde]
+- **Gastronomía:** [plato o bebida típica de {destination} imprescindible]
+
+Reglas estrictas:
+- TODO en ESPAÑOL, sin excepción
+- Empieza directamente con la frase introductoria, sin saludos ni presentaciones
+- Usa nombres reales de lugares, restaurantes y barrios de {destination}
 - Cada día cubre una zona o faceta diferente
-- Sin markdown excesivo ni listas con guiones fuera del formato indicado
+- Presupuesto realista para viajero estándar (no mochilero ni lujo)
+- Respeta el formato con los separadores --- y los encabezados ###
 - Máximo {max_words} palabras en total
